@@ -1,0 +1,6 @@
+{
+  "name": "Orthodontic Care & RME",
+  "description": "Aplikasi penunjang perawatan ortodontik dengan Rekam Medis Elektronik (RME) sesuai standar Kemenkes, dilengkapi pemeriksaan SOAP, edukasi interaktif, monitoring kepatuhan, dan asisten helpdesk AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -292,6 +292,64 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
           </div>
         )}
 
+        {/* VIDEO TUTORIAL UTAMA: CARA MENYIKAT GIGI YANG BENAR BAGI PENGGUNA BEHEL (JIKA ARTIKEL edu-1) */}
+        {art.id === "edu-1" && (
+          <div className="space-y-3 bg-white p-4 sm:p-5 rounded-2xl border-2 border-rose-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-rose-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-pink-600 to-rose-700 text-white flex items-center justify-center shadow-xs">
+                  <Video size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                      Video Tutorial: Cara Menyikat Gigi yang Benar bagi Pengguna Behel
+                    </h3>
+                    <span className="text-[10px] bg-rose-100 text-rose-800 font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <Play size={10} fill="currentColor" /> Siap Diputar Langsung
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Demonstrasi langsung teknik menyikat gigi kawat ortodontik, batas gusi, dan sela bracket
+                  </p>
+                </div>
+              </div>
+              <a
+                href="https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-rose-600 hover:text-rose-800 underline font-semibold flex items-center gap-1 self-start sm:self-auto"
+              >
+                <span>Buka di YouTube</span>
+                <ArrowRight size={12} />
+              </a>
+            </div>
+
+            {/* Directly Playable 16:9 YouTube Player */}
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-md bg-black border border-rose-200">
+              <iframe
+                className="w-full h-full border-0"
+                src="https://www.youtube.com/embed/nNPJxgNVBAg"
+                title="Cara Menyikat Gigi yang Benar bagi Pengguna Behel"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+
+            <div className="p-3 bg-rose-50/80 rounded-xl border border-rose-100 flex flex-wrap items-center justify-between gap-2 text-xs text-rose-900">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-rose-600 shrink-0" />
+                <span className="font-medium text-[11px]">
+                  Video dapat langsung ditonton di sini. Terapkan teknik sikat gigi ortodontik minimal 3 kali sehari.
+                </span>
+              </div>
+              <span className="text-[10px] bg-white text-rose-700 font-bold px-2 py-0.5 rounded-md border border-rose-200">
+                HD 1080p
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* SUB-JUDUL & MODUL TEORI BERGAMBAR SECTION */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gray-50/90 p-4 rounded-2xl border border-gray-200/80">
@@ -1052,6 +1110,34 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                 <p className="text-xs text-emerald-900 leading-relaxed bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100">
                   {activePart.maintenanceTip}
                 </p>
+
+                {activePart.id === "part-bracket" && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3 flex-wrap mt-2">
+                    <div className="flex items-center gap-2">
+                      <Video size={16} className="text-rose-600 shrink-0" />
+                      <span className="text-xs font-semibold text-rose-950">
+                        Tutorial praktis: Cara menyikat gigi yang benar bagi pengguna behel
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetArt = articles.find(a => a.id === "edu-1") || articles[0];
+                        setSelectedArticle(targetArt);
+                        const subList = targetArt.subTopics || articleSubTopicsMap[targetArt.id] || [];
+                        const sub = subList.find(s => s.id === "sub-1-2") || subList[0];
+                        if (sub) {
+                          setActiveSubTopicModal(sub);
+                          setActiveSubTopicList(subList);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                    >
+                      <Play size={11} fill="currentColor" />
+                      <span>Putar Video Tutorial</span>
+                    </button>
+                  </div>
+                )}
 
                 {activePart.id === "part-archwire" && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3 flex-wrap mt-2">

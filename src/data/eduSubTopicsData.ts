@@ -8,9 +8,6 @@ export const articleSubTopicsMap: Record<string, EduSubTopic[]> = {
       subtitle: "Bulu sikat berkontur huruf V khusus untuk membersihkan bracket dan gusi secara bersamaan.",
       imageUrl: "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Desain V-Trim: Bulu tengah lebih pendek memberi ruang bagi kawat dan bracket.",
-      videoUrl: "https://www.youtube.com/embed/nNPJxgNVBAg",
-      videoTitle: "Tutorial Cara Menyikat Gigi yang Benar bagi Pengguna Behel",
-      videoOriginalUrl: "https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz",
       keyPoints: [
         "Bulu sikat baris tengah berpotongan lebih rendah (lekukan V).",
         "Bulu bagian luar yang lebih panjang menjangkau permukaan gusi dan mahkota gigi.",
@@ -41,13 +38,10 @@ Dengan kontur huruf V, baris tengah yang lebih pendek mampu menyapu permukaan br
     },
     {
       id: "sub-1-2",
-      title: "Cara Menyikat Gigi yang Benar bagi Pengguna Behel (Teknik Sudut 45° Modified Bass)",
+      title: "Teknik Sudut 45° (Modified Bass Technique)",
       subtitle: "Sudut emas pembersihan plak margin gusi dan koloni kawat behel atas & bawah.",
       imageUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Kemiringan 45° membersihkan sela atas dan bawah bracket secara menyeluruh.",
-      videoUrl: "https://www.youtube.com/embed/nNPJxgNVBAg",
-      videoTitle: "Cara Menyikat Gigi yang Benar bagi Pengguna Behel",
-      videoOriginalUrl: "https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz",
       keyPoints: [
         "Sudut 45° ke arah gusi untuk membersihkan bagian atas bracket.",
         "Sudut 45° ke arah mahkota untuk membersihkan sela bawah bracket dan kawat.",
@@ -84,9 +78,6 @@ Gerakan getaran mikro (vibrasi) tanpa melepaskan ujung bulu sikat dari gigi akan
       subtitle: "Menembus area tersembunyi di bawah kawat lengkung yang tidak tersentuh sikat biasa.",
       imageUrl: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Sikat interdental menjangkau kolong kawat dan sayap samping bracket.",
-      videoUrl: "https://www.youtube.com/embed/LIIxncCthOs",
-      videoTitle: "Tutorial Praktik Penggunaan Interdental Brush pada Kawat Gigi",
-      videoOriginalUrl: "https://youtu.be/LIIxncCthOs?si=XSolBihAYEWpLj5k",
       keyPoints: [
         "Mampu masuk ke bawah kawat ortodontik tanpa menimbulkan distorsi kawat.",
         "Membersihkan sayap bracket (tie wings) dan karet elastis (O-ring/power chain).",
@@ -121,9 +112,6 @@ Sikat interdental menggunakan kawat pilin fleksibel berdiameter mikro (0.4–0.8
       subtitle: "Benang gigi khusus berujung kaku untuk membersihkan plak kontak antar gigi di malam hari.",
       imageUrl: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Superfloss memiliki ujung kaku terintegrasi untuk menembus sela kawat gigi.",
-      videoUrl: "https://www.youtube.com/embed/3_vHsOGiIo4",
-      videoTitle: "Tutorial Flossing Pasien Orthodonti dengan Benang Gigi Khusus Behel",
-      videoOriginalUrl: "https://youtu.be/3_vHsOGiIo4?si=RDIfeRNIYVJbyQ3p",
       keyPoints: [
         "Membersihkan zona kontak interproksimal tempat 80% gigi berlubang bersembunyi.",
         "Ujung kaku (stiffened end) memudahkan benang dimasukkan di bawah kawat.",

@@ -26,6 +26,14 @@ import {
   formatRelativeTime, 
   formatFullIndoDateTime 
 } from "../utils/accessUtils";
+import {
+  ARCHWIRE_MATERIALS,
+  ARCHWIRE_SIZES,
+  ARCHWIRE_QUICK_PRESETS,
+  ArchwireChangeState,
+  formatArchwireSummary,
+} from "../utils/orthoWireConstants";
+import { buildPatientWaUrl } from "../utils/whatsappUtils";
 
 interface RekamMedisProps {
   role?: "dentist" | "patient";
@@ -61,13 +69,6 @@ export default function RekamMedis({
   const [isEditing, setIsEditing] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [showAccessHistory, setShowAccessHistory] = useState(false);
-
-  const handleSendWaReminder = (patient: Patient) => {
-    const cleanPhone = (patient.phone || "").replace(/\D/g, "");
-    const formattedPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
-    const msg = `Halo ${patient.name}, kami dari klinik ortodonsia ingin mengingatkan Anda untuk mengecek perkembangan kawat gigi Anda dan mengisi catatan harian di aplikasi Orthodontic Care. Terima kasih!`;
-    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, "_blank");
-  };
   
   // SOAP Exam Edit and Delete States
   const [examToDelete, setExamToDelete] = useState<SOAPExam | null>(null);
@@ -95,9 +96,18 @@ export default function RekamMedis({
     procedure: "",
     prescription: "",
     nextVisitDate: "",
+    archwireChange: {
+      enabled: false,
+      upperArch: true,
+      lowerArch: true,
+      material: ARCHWIRE_MATERIALS[0] as string,
+      upperSize: '0.014"',
+      lowerSize: '0.014"',
+    } as ArchwireChangeState,
   });
 
   const handleStartEditExam = (exam: SOAPExam) => {
+    const existingWire = exam.plan.archwireChange;
     setEditExamForm({
       date: exam.date,
       subjective: exam.subjective,
@@ -121,6 +131,23 @@ export default function RekamMedis({
       procedure: exam.plan.procedure || "",
       prescription: exam.plan.prescription || "",
       nextVisitDate: exam.plan.nextVisitDate || "",
+      archwireChange: existingWire
+        ? {
+            enabled: !!existingWire.enabled,
+            upperArch: !!existingWire.upperArch,
+            lowerArch: !!existingWire.lowerArch,
+            material: existingWire.material || ARCHWIRE_MATERIALS[0],
+            upperSize: existingWire.upperSize || '0.014"',
+            lowerSize: existingWire.lowerSize || '0.014"',
+          }
+        : {
+            enabled: false,
+            upperArch: true,
+            lowerArch: true,
+            material: ARCHWIRE_MATERIALS[0],
+            upperSize: '0.014"',
+            lowerSize: '0.014"',
+          },
     });
     setExamToEdit(exam);
   };
@@ -326,6 +353,19 @@ export default function RekamMedis({
                         <span className="text-[10px] font-bold text-gray-400 tracking-wider block">P (PLAN / RENCANA TATA LAKSANA)</span>
                         <div className="space-y-1 mt-0.5">
                           <p className="text-gray-700"><strong>Tahap Perawatan:</strong> <span className="text-pink-700 font-bold">{exam.plan.treatmentStage}</span></p>
+                          {exam.plan.archwireChange?.enabled && (
+                            <div className="bg-pink-50/70 border border-pink-100 px-2.5 py-1.5 rounded-lg text-[11px] text-pink-900">
+                              <strong>Archwire Change:</strong>{" "}
+                              {formatArchwireSummary({
+                                enabled: exam.plan.archwireChange.enabled,
+                                upperArch: exam.plan.archwireChange.upperArch,
+                                lowerArch: exam.plan.archwireChange.lowerArch,
+                                material: exam.plan.archwireChange.material,
+                                upperSize: exam.plan.archwireChange.upperSize || "",
+                                lowerSize: exam.plan.archwireChange.lowerSize || "",
+                              })}
+                            </div>
+                          )}
                           <p className="text-gray-700"><strong>Prosedur Aktivasi:</strong> {exam.plan.procedure}</p>
                           {exam.plan.prescription && <p className="text-gray-600 bg-pink-50 border border-pink-100 px-2 py-1 rounded inline-block text-[11px]"><strong>Resep/Instruksi Alat:</strong> {exam.plan.prescription}</p>}
                         </div>
@@ -1016,14 +1056,16 @@ export default function RekamMedis({
                     <span>{showAccessHistory ? "Tutup Log" : "Riwayat Sesi"}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSendWaReminder(selectedPatient)}
+                  <a
+                    href={buildPatientWaUrl(selectedPatient)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="Kirim pengingat pengisian Buku Harian Gigi via WhatsApp"
                   >
                     <MessageCircle size={13} className="text-emerald-600" />
                     <span>Ingatkan via WA</span>
-                  </button>
+                  </a>
                 </div>
               </div>
 
@@ -1177,6 +1219,19 @@ export default function RekamMedis({
                             <span className="text-[10px] font-bold text-gray-400 tracking-wider block">P (PLAN / TATA LAKSANA)</span>
                             <div className="space-y-1 mt-0.5">
                               <p className="text-gray-700"><strong>Tahap:</strong> <span className="text-pink-700 font-bold">{exam.plan.treatmentStage}</span></p>
+                              {exam.plan.archwireChange?.enabled && (
+                                <div className="bg-pink-50/70 border border-pink-100 px-2.5 py-1.5 rounded-lg text-[11px] text-pink-900">
+                                  <strong>Archwire Change:</strong>{" "}
+                                  {formatArchwireSummary({
+                                    enabled: exam.plan.archwireChange.enabled,
+                                    upperArch: exam.plan.archwireChange.upperArch,
+                                    lowerArch: exam.plan.archwireChange.lowerArch,
+                                    material: exam.plan.archwireChange.material,
+                                    upperSize: exam.plan.archwireChange.upperSize || "",
+                                    lowerSize: exam.plan.archwireChange.lowerSize || "",
+                                  })}
+                                </div>
+                              )}
                               <p className="text-gray-700"><strong>Prosedur:</strong> {exam.plan.procedure}</p>
                               {exam.plan.prescription && <p className="text-gray-600 bg-pink-50 border border-pink-100 px-2 py-1 rounded inline-block text-[11px]"><strong>Resep/Alat:</strong> {exam.plan.prescription}</p>}
                             </div>
@@ -1544,6 +1599,201 @@ export default function RekamMedis({
                   </div>
                 </div>
 
+                {/* Parameter Orto Cepat: Archwire Change */}
+                <div className="bg-pink-50/40 p-3 rounded-xl border border-pink-100 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={editExamForm.archwireChange.enabled}
+                        onChange={(e) =>
+                          setEditExamForm((prev) => ({
+                            ...prev,
+                            archwireChange: { ...prev.archwireChange, enabled: e.target.checked },
+                          }))
+                        }
+                        className="w-4 h-4 rounded border-pink-300 text-pink-600 focus:ring-pink-500 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-pink-950">
+                        Archwire Change (Penggantian Ukuran / Material Kawat)
+                      </span>
+                    </label>
+
+                    {editExamForm.archwireChange.enabled && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const summary = formatArchwireSummary(editExamForm.archwireChange);
+                          if (!summary) return;
+                          setEditExamForm((prev) => ({
+                            ...prev,
+                            procedure: prev.procedure.trim()
+                              ? prev.procedure.includes(summary)
+                                ? prev.procedure
+                                : `${prev.procedure.trim()}; ${summary}`
+                              : summary,
+                          }));
+                        }}
+                        className="px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        Sisipkan ke Prosedur
+                      </button>
+                    )}
+                  </div>
+
+                  {editExamForm.archwireChange.enabled && (
+                    <div className="space-y-2.5 pt-2 border-t border-pink-100/80">
+                      <div className="flex flex-wrap gap-1.5">
+                        {ARCHWIRE_QUICK_PRESETS.map((preset) => {
+                          const isActive =
+                            editExamForm.archwireChange.material === preset.material &&
+                            (!editExamForm.archwireChange.upperArch ||
+                              editExamForm.archwireChange.upperSize === preset.size) &&
+                            (!editExamForm.archwireChange.lowerArch ||
+                              editExamForm.archwireChange.lowerSize === preset.size);
+                          return (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() =>
+                                setEditExamForm((prev) => ({
+                                  ...prev,
+                                  archwireChange: {
+                                    ...prev.archwireChange,
+                                    enabled: true,
+                                    material: preset.material,
+                                    upperSize: preset.size,
+                                    lowerSize: preset.size,
+                                  },
+                                }))
+                              }
+                              className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
+                                isActive
+                                  ? "bg-pink-500 text-white border-pink-500"
+                                  : "bg-white text-pink-800 border-pink-200 hover:bg-pink-50"
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div className="space-y-1 bg-white p-2.5 rounded-lg border border-pink-100">
+                          <label className="text-[10px] font-bold text-pink-800 uppercase block">
+                            Material Kawat
+                          </label>
+                          <select
+                            value={editExamForm.archwireChange.material}
+                            onChange={(e) =>
+                              setEditExamForm((prev) => ({
+                                ...prev,
+                                archwireChange: { ...prev.archwireChange, material: e.target.value },
+                              }))
+                            }
+                            className="w-full px-2 py-1 border border-gray-200 bg-gray-50 rounded-lg text-[11px]"
+                          >
+                            {ARCHWIRE_MATERIALS.map((mat) => (
+                              <option key={mat} value={mat}>
+                                {mat}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 bg-white p-2.5 rounded-lg border border-pink-100">
+                          <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editExamForm.archwireChange.upperArch}
+                              onChange={(e) =>
+                                setEditExamForm((prev) => ({
+                                  ...prev,
+                                  archwireChange: {
+                                    ...prev.archwireChange,
+                                    upperArch: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                            />
+                            <span>Rahang Atas (RA)</span>
+                          </label>
+                          <select
+                            value={editExamForm.archwireChange.upperSize}
+                            disabled={!editExamForm.archwireChange.upperArch}
+                            onChange={(e) =>
+                              setEditExamForm((prev) => ({
+                                ...prev,
+                                archwireChange: {
+                                  ...prev.archwireChange,
+                                  upperSize: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-2 py-1 border border-gray-200 bg-gray-50 rounded-lg text-[11px] font-mono disabled:opacity-50"
+                          >
+                            {ARCHWIRE_SIZES.map((grp) => (
+                              <optgroup key={grp.group} label={grp.group}>
+                                {grp.options.map((sz) => (
+                                  <option key={sz} value={sz}>
+                                    {sz}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 bg-white p-2.5 rounded-lg border border-pink-100">
+                          <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editExamForm.archwireChange.lowerArch}
+                              onChange={(e) =>
+                                setEditExamForm((prev) => ({
+                                  ...prev,
+                                  archwireChange: {
+                                    ...prev.archwireChange,
+                                    lowerArch: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                            />
+                            <span>Rahang Bawah (RB)</span>
+                          </label>
+                          <select
+                            value={editExamForm.archwireChange.lowerSize}
+                            disabled={!editExamForm.archwireChange.lowerArch}
+                            onChange={(e) =>
+                              setEditExamForm((prev) => ({
+                                ...prev,
+                                archwireChange: {
+                                  ...prev.archwireChange,
+                                  lowerSize: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-2 py-1 border border-gray-200 bg-gray-50 rounded-lg text-[11px] font-mono disabled:opacity-50"
+                          >
+                            {ARCHWIRE_SIZES.map((grp) => (
+                              <optgroup key={grp.group} label={grp.group}>
+                                {grp.options.map((sz) => (
+                                  <option key={sz} value={sz}>
+                                    {sz}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1">
                   <label className="font-semibold text-gray-600 block">Prosedur Aktivasi / Tindakan</label>
                   <textarea
@@ -1580,6 +1830,11 @@ export default function RekamMedis({
                 type="button"
                 onClick={() => {
                   if (onEditExam && examToEdit) {
+                    const wireSummary = editExamForm.archwireChange.enabled
+                      ? formatArchwireSummary(editExamForm.archwireChange)
+                      : "";
+                    const finalProcedure =
+                      editExamForm.procedure.trim() || wireSummary || "Kontrol ortodonti rutin";
                     onEditExam({
                       id: examToEdit.id,
                       patientId: examToEdit.patientId,
@@ -1606,9 +1861,23 @@ export default function RekamMedis({
                       assessment: editExamForm.assessment,
                       plan: {
                         treatmentStage: editExamForm.treatmentStage,
-                        procedure: editExamForm.procedure,
+                        procedure: finalProcedure,
                         prescription: editExamForm.prescription,
                         nextVisitDate: editExamForm.nextVisitDate,
+                        archwireChange: editExamForm.archwireChange.enabled
+                          ? {
+                              enabled: true,
+                              upperArch: editExamForm.archwireChange.upperArch,
+                              lowerArch: editExamForm.archwireChange.lowerArch,
+                              material: editExamForm.archwireChange.material,
+                              upperSize: editExamForm.archwireChange.upperArch
+                                ? editExamForm.archwireChange.upperSize
+                                : undefined,
+                              lowerSize: editExamForm.archwireChange.lowerArch
+                                ? editExamForm.archwireChange.lowerSize
+                                : undefined,
+                            }
+                          : undefined,
                       }
                     });
                   }

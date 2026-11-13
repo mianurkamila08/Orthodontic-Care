@@ -9,28 +9,16 @@ import {
   Smile,
   CheckSquare
 } from "lucide-react";
-import { MonitoringLog, Patient } from "../types";
+import { MonitoringLog, Patient, BrushingMonthData, BrushingChecklistData } from "../types";
+import { getDaysInMonth, seedDefaultBrushingChecklist } from "../utils/brushingUtils";
 
 interface MonitoringProps {
   logs: MonitoringLog[];
   patients: Patient[];
   selectedPatientId: string;
   onAddLog: (log: MonitoringLog) => void;
-}
-
-interface BrushingDayState {
-  pagi: boolean;
-  malam: boolean;
-}
-
-interface BrushingMonthData {
-  [day: number]: BrushingDayState;
-}
-
-interface BrushingChecklistData {
-  [patientId: string]: {
-    [month: string]: BrushingMonthData;
-  };
+  checklist?: BrushingChecklistData;
+  onUpdateChecklist?: React.Dispatch<React.SetStateAction<BrushingChecklistData>>;
 }
 
 export default function Monitoring({
@@ -38,6 +26,8 @@ export default function Monitoring({
   patients,
   selectedPatientId,
   onAddLog,
+  checklist: externalChecklist,
+  onUpdateChecklist,
 }: MonitoringProps) {
   // Available Months for selection
   const months = [
@@ -68,106 +58,27 @@ export default function Monitoring({
     }
   }, [selectedPatientId]);
 
-  // Master checklist state
-  const [checklist, setChecklist] = useState<BrushingChecklistData>(() => {
-    const saved = localStorage.getItem("ortho_brushing_checklist");
-    return saved ? JSON.parse(saved) : {};
+  // Fallback local checklist state if parent props are not provided
+  const [localChecklist, setLocalChecklist] = useState<BrushingChecklistData>(() => {
+    try {
+      const saved = localStorage.getItem("ortho_brushing_checklist");
+      return seedDefaultBrushingChecklist(saved ? JSON.parse(saved) : {});
+    } catch {
+      return seedDefaultBrushingChecklist({});
+    }
   });
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem("ortho_brushing_checklist", JSON.stringify(checklist));
-  }, [checklist]);
+  const checklist = externalChecklist ?? localChecklist;
+  const updateChecklist = onUpdateChecklist ?? setLocalChecklist;
 
-  // Get days in selected month
-  const getDaysInMonth = (monthStr: string): number => {
-    if (monthStr.startsWith("February")) {
-      return 28; // 2026 is not a leap year
+  // Save fallback local state to localStorage when unmanaged
+  useEffect(() => {
+    if (!externalChecklist) {
+      localStorage.setItem("ortho_brushing_checklist", JSON.stringify(localChecklist));
     }
-    const thirtyDays = ["April", "June", "September", "November"];
-    const match = thirtyDays.some(m => monthStr.startsWith(m));
-    return match ? 30 : 31;
-  };
+  }, [externalChecklist, localChecklist]);
 
   const numDays = getDaysInMonth(selectedMonth);
-
-  // Seed default data for Mia Nurkamila in June 2026 (exactly 52 / 60 Sessions checked as shown in the screenshot)
-  useEffect(() => {
-    const defaultPatientId = "RM-2604-1066";
-    const defaultMonth = "June 2026";
-    
-    // If we don't have records for Mia in June 2026, let's seed exactly 52 checked sessions
-    if (!checklist[defaultPatientId] || !checklist[defaultPatientId][defaultMonth]) {
-      const seededMonthData: BrushingMonthData = {};
-      
-      // Unchecked sessions to make exactly 52 / 60 checked
-      // Total 60 sessions. 8 sessions should be unchecked.
-      const uncheckedSessions = [
-        { day: 3, session: "malam" },
-        { day: 8, session: "pagi" },
-        { day: 12, session: "malam" },
-        { day: 15, session: "pagi" },
-        { day: 20, session: "pagi" },
-        { day: 21, session: "malam" },
-        { day: 24, session: "malam" },
-        { day: 28, session: "pagi" },
-      ];
-
-      for (let d = 1; d <= 30; d++) {
-        const pagiUnchecked = uncheckedSessions.some(u => u.day === d && u.session === "pagi");
-        const malamUnchecked = uncheckedSessions.some(u => u.day === d && u.session === "malam");
-        
-        seededMonthData[d] = {
-          pagi: !pagiUnchecked,
-          malam: !malamUnchecked,
-        };
-      }
-
-      setChecklist(prev => ({
-        ...prev,
-        [defaultPatientId]: {
-          ...(prev[defaultPatientId] || {}),
-          [defaultMonth]: seededMonthData
-        }
-      }));
-    }
-
-    // Seed default data for Aditya Pratama P-101 in June 2026 as well (e.g. 48 / 60 sessions)
-    const adityaId = "P-101";
-    if (!checklist[adityaId] || !checklist[adityaId][defaultMonth]) {
-      const seededMonthData: BrushingMonthData = {};
-      const uncheckedAditya = [
-        { day: 2, session: "malam" },
-        { day: 5, session: "malam" },
-        { day: 10, session: "pagi" },
-        { day: 14, session: "malam" },
-        { day: 18, session: "pagi" },
-        { day: 22, session: "malam" },
-        { day: 25, session: "malam" },
-        { day: 26, session: "pagi" },
-        { day: 29, session: "pagi" },
-        { day: 30, session: "malam" },
-      ];
-
-      for (let d = 1; d <= 30; d++) {
-        const pagiUnchecked = uncheckedAditya.some(u => u.day === d && u.session === "pagi");
-        const malamUnchecked = uncheckedAditya.some(u => u.day === d && u.session === "malam");
-        
-        seededMonthData[d] = {
-          pagi: !pagiUnchecked,
-          malam: !malamUnchecked,
-        };
-      }
-
-      setChecklist(prev => ({
-        ...prev,
-        [adityaId]: {
-          ...(prev[adityaId] || {}),
-          [defaultMonth]: seededMonthData
-        }
-      }));
-    }
-  }, [checklist]);
 
   // Ensure active patient and month has an entry in local state
   const getMonthData = (): BrushingMonthData => {
@@ -199,7 +110,7 @@ export default function Monitoring({
       [session]: !currentMonthData[day][session]
     };
 
-    setChecklist(prev => ({
+    updateChecklist(prev => ({
       ...prev,
       [activePatientId]: {
         ...(prev[activePatientId] || {}),

@@ -7,9 +7,18 @@ import {
   BrainCircuit, 
   Calendar,
   AlertCircle,
-  Stethoscope
+  Stethoscope,
+  Sliders,
+  Check
 } from "lucide-react";
 import { Patient, SOAPExam } from "../types";
+import {
+  ARCHWIRE_MATERIALS,
+  ARCHWIRE_SIZES,
+  ARCHWIRE_QUICK_PRESETS,
+  ArchwireChangeState,
+  formatArchwireSummary,
+} from "../utils/orthoWireConstants";
 
 interface PemeriksaanProps {
   patients: Patient[];
@@ -75,8 +84,33 @@ export default function Pemeriksaan({
     return d.toISOString().split("T")[0];
   });
 
+  // Archwire Change Quick Parameter States
+  const [archwireChange, setArchwireChange] = useState<ArchwireChangeState>({
+    enabled: false,
+    upperArch: true,
+    lowerArch: true,
+    material: ARCHWIRE_MATERIALS[0],
+    upperSize: '0.014"',
+    lowerSize: '0.014"',
+  });
+
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  const handleApplyArchwireToProcedure = () => {
+    const activeWire: ArchwireChangeState = { ...archwireChange, enabled: true };
+    if (!archwireChange.enabled) {
+      setArchwireChange(activeWire);
+    }
+    const summary = formatArchwireSummary(activeWire);
+    if (!summary) return;
+    setProcedure((prev) => {
+      const cleaned = prev.trim();
+      if (!cleaned) return summary;
+      if (cleaned.includes(summary)) return cleaned;
+      return `${summary}. ${cleaned}`;
+    });
+  };
 
   // Smart Diagnosis Suggestion Generator (Orthodontics expert rule-based)
   const generateDiagnosis = () => {
@@ -128,8 +162,14 @@ export default function Pemeriksaan({
       setFormError("Asesmen diagnosa (A) wajib diisi. Anda dapat menekan tombol bantu diagnosa.");
       return;
     }
-    if (!procedure.trim()) {
-      setFormError("Prosedur tatalaksana (P) wajib diisi");
+
+    const wireSummary = archwireChange.enabled ? formatArchwireSummary(archwireChange) : "";
+    const finalProcedure = procedure.trim()
+      ? procedure.trim()
+      : wireSummary;
+
+    if (!finalProcedure) {
+      setFormError("Prosedur tatalaksana (P) wajib diisi atau aktifkan parameter Archwire Change");
       return;
     }
 
@@ -159,9 +199,21 @@ export default function Pemeriksaan({
       assessment,
       plan: {
         treatmentStage,
-        procedure,
+        procedure: finalProcedure,
         prescription,
         nextVisitDate,
+        ...(archwireChange.enabled
+          ? {
+              archwireChange: {
+                enabled: true,
+                upperArch: archwireChange.upperArch,
+                lowerArch: archwireChange.lowerArch,
+                material: archwireChange.material,
+                upperSize: archwireChange.upperArch ? archwireChange.upperSize : undefined,
+                lowerSize: archwireChange.lowerArch ? archwireChange.lowerSize : undefined,
+              },
+            }
+          : {}),
       },
     };
 
@@ -177,6 +229,14 @@ export default function Pemeriksaan({
     setAssessment("");
     setPcrTeethCount(28);
     setPcrPlaqueSurfacesCount(8);
+    setArchwireChange({
+      enabled: false,
+      upperArch: true,
+      lowerArch: true,
+      material: ARCHWIRE_MATERIALS[0],
+      upperSize: '0.014"',
+      lowerSize: '0.014"',
+    });
 
     // Jump to profile
     setTimeout(() => {
@@ -576,6 +636,178 @@ export default function Pemeriksaan({
                 className="w-full px-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:outline-none"
               />
             </div>
+          </div>
+
+          {/* Parameter Orto Cepat: Archwire Change */}
+          <div className="bg-pink-50/40 p-4 rounded-xl border border-pink-100 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={archwireChange.enabled}
+                  onChange={(e) =>
+                    setArchwireChange((prev) => ({ ...prev, enabled: e.target.checked }))
+                  }
+                  className="w-4 h-4 rounded border-pink-300 text-pink-600 focus:ring-pink-500 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-pink-950 flex items-center gap-1.5">
+                  <Sliders size={14} className="text-pink-600" />
+                  <span>Archwire Change (Penggantian Ukuran / Material Kawat)</span>
+                </span>
+              </label>
+
+              {archwireChange.enabled && (
+                <button
+                  type="button"
+                  onClick={handleApplyArchwireToProcedure}
+                  className="px-3 py-1 bg-pink-600 hover:bg-pink-700 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+                >
+                  <Check size={12} />
+                  <span>Sisipkan ke Kolom Prosedur</span>
+                </button>
+              )}
+            </div>
+
+            {archwireChange.enabled && (
+              <div className="space-y-3 pt-2 border-t border-pink-100/80">
+                {/* Quick Preset Checkboxes / Chips */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-pink-800 uppercase tracking-wider block">
+                    Pilihan Cepat (Quick Preset Kawat)
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ARCHWIRE_QUICK_PRESETS.map((preset) => {
+                      const isActive =
+                        archwireChange.material === preset.material &&
+                        (!archwireChange.upperArch || archwireChange.upperSize === preset.size) &&
+                        (!archwireChange.lowerArch || archwireChange.lowerSize === preset.size);
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() =>
+                            setArchwireChange((prev) => ({
+                              ...prev,
+                              enabled: true,
+                              material: preset.material,
+                              upperSize: preset.size,
+                              lowerSize: preset.size,
+                            }))
+                          }
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                            isActive
+                              ? "bg-pink-500 text-white border-pink-500 shadow-2xs"
+                              : "bg-white text-pink-800 border-pink-200 hover:bg-pink-50"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Arch Checkboxes + Dropdowns */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Material Dropdown */}
+                  <div className="space-y-1 bg-white p-3 rounded-xl border border-pink-100">
+                    <label className="text-[10px] font-bold text-pink-800 uppercase block">
+                      Material Kawat
+                    </label>
+                    <select
+                      value={archwireChange.material}
+                      onChange={(e) =>
+                        setArchwireChange((prev) => ({ ...prev, material: e.target.value }))
+                      }
+                      className="w-full px-2.5 py-1.5 border border-gray-200 bg-gray-50 focus:bg-white rounded-lg text-xs font-medium focus:outline-none focus:border-pink-500"
+                    >
+                      {ARCHWIRE_MATERIALS.map((mat) => (
+                        <option key={mat} value={mat}>
+                          {mat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Upper Arch (RA) Checkbox + Size Dropdown */}
+                  <div className="space-y-1.5 bg-white p-3 rounded-xl border border-pink-100">
+                    <label className="flex items-center gap-2 text-[11px] font-bold text-gray-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={archwireChange.upperArch}
+                        onChange={(e) =>
+                          setArchwireChange((prev) => ({ ...prev, upperArch: e.target.checked }))
+                        }
+                        className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                      />
+                      <span>Rahang Atas (RA)</span>
+                    </label>
+                    <select
+                      value={archwireChange.upperSize}
+                      disabled={!archwireChange.upperArch}
+                      onChange={(e) =>
+                        setArchwireChange((prev) => ({ ...prev, upperSize: e.target.value }))
+                      }
+                      className="w-full px-2.5 py-1.5 border border-gray-200 bg-gray-50 focus:bg-white rounded-lg text-xs font-mono disabled:opacity-50 focus:outline-none focus:border-pink-500"
+                    >
+                      {ARCHWIRE_SIZES.map((grp) => (
+                        <optgroup key={grp.group} label={grp.group}>
+                          {grp.options.map((sz) => (
+                            <option key={sz} value={sz}>
+                              {sz}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Lower Arch (RB) Checkbox + Size Dropdown */}
+                  <div className="space-y-1.5 bg-white p-3 rounded-xl border border-pink-100">
+                    <label className="flex items-center gap-2 text-[11px] font-bold text-gray-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={archwireChange.lowerArch}
+                        onChange={(e) =>
+                          setArchwireChange((prev) => ({ ...prev, lowerArch: e.target.checked }))
+                        }
+                        className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                      />
+                      <span>Rahang Bawah (RB)</span>
+                    </label>
+                    <select
+                      value={archwireChange.lowerSize}
+                      disabled={!archwireChange.lowerArch}
+                      onChange={(e) =>
+                        setArchwireChange((prev) => ({ ...prev, lowerSize: e.target.value }))
+                      }
+                      className="w-full px-2.5 py-1.5 border border-gray-200 bg-gray-50 focus:bg-white rounded-lg text-xs font-mono disabled:opacity-50 focus:outline-none focus:border-pink-500"
+                    >
+                      {ARCHWIRE_SIZES.map((grp) => (
+                        <optgroup key={grp.group} label={grp.group}>
+                          {grp.options.map((sz) => (
+                            <option key={sz} value={sz}>
+                              {sz}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Live Summary Preview */}
+                <div className="bg-white/80 px-3 py-2 rounded-lg border border-pink-100 text-[11px] text-pink-900 flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <strong>Ringkasan Kawat:</strong>{" "}
+                    <span className="font-mono">{formatArchwireSummary(archwireChange)}</span>
+                  </span>
+                  <span className="text-[10px] text-pink-600">
+                    Tersimpan otomatis ke RME &amp; kolom prosedur
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

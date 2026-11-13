@@ -25,8 +25,10 @@ import {
   ShieldCheck,
   Filter
 } from "lucide-react";
-import { Patient, SOAPExam, MonitoringLog, PatientAccessLog } from "../types";
+import { Patient, SOAPExam, MonitoringLog, PatientAccessLog, BrushingChecklistData } from "../types";
 import { getPatientAccessStatus, formatRelativeTime, formatFullIndoDateTime } from "../utils/accessUtils";
+import { getOverallBrushingSummary, getPatientBrushingSummary } from "../utils/brushingUtils";
+import { buildPatientWaUrl } from "../utils/whatsappUtils";
 
 interface DashboardProps {
   role: "dentist" | "patient";
@@ -37,6 +39,7 @@ interface DashboardProps {
   onNavigate: (tab: string) => void;
   onSelectPatient: (id: string) => void;
   accessLogs?: PatientAccessLog[];
+  brushingChecklist?: BrushingChecklistData;
 }
 
 export default function Dashboard({
@@ -48,34 +51,14 @@ export default function Dashboard({
   onNavigate,
   onSelectPatient,
   accessLogs = [],
+  brushingChecklist = {},
 }: DashboardProps) {
   // Common Calculations
   const activePatientCount = patients.length;
   const totalExamsCount = exams.length;
-  
-  // Calculate average compliance score based on logs (0 to 100)
-  // Brushing > 2 times is 35 points, pain tracking completed is 15 points, wear hours > 20 is 50 points
-  const calculateLogScore = (log: MonitoringLog) => {
-    let score = 0;
-    if (log.brushedCount >= 3) score += 35;
-    else if (log.brushedCount === 2) score += 20;
-    else if (log.brushedCount === 1) score += 10;
-    
-    score += 15; // standard check-in points
-    
-    if (log.alignerWearHours !== undefined) {
-      if (log.alignerWearHours >= 22) score += 50;
-      else if (log.alignerWearHours >= 20) score += 40;
-      else if (log.alignerWearHours >= 15) score += 25;
-      else if (log.alignerWearHours >= 10) score += 10;
-    } else {
-      // For braces, elastic compliance or just taking care (wear hours is undefined, assume full score if wax or notes logged)
-      score += 50;
-    }
-    return Math.min(score, 100);
-  };
 
-  const getComplianceStatus = (score: number) => {
+  const getComplianceStatus = (score: number | null) => {
+    if (score === null) return { label: "Belum Diisi", color: "bg-gray-100 text-gray-600 border-gray-200" };
     if (score >= 80) return { label: "Sangat Patuh", color: "bg-emerald-100 text-emerald-800 border-emerald-200" };
     if (score >= 50) return { label: "Cukup Patuh", color: "bg-amber-100 text-amber-800 border-amber-200" };
     return { label: "Kurang Patuh", color: "bg-rose-100 text-rose-800 border-rose-200" };
@@ -84,11 +67,12 @@ export default function Dashboard({
   const patientLogs = logs.filter(l => l.patientId === selectedPatientId);
   const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
 
-  const averageCompliance = React.useMemo(() => {
-    if (logs.length === 0) return 85;
-    const scores = logs.map(calculateLogScore);
-    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-  }, [logs]);
+  // Overall compliance strictly from recapitulation of all patients' tooth brushing checklists
+  const brushingOverall = React.useMemo(() => {
+    return getOverallBrushingSummary(brushingChecklist, patients);
+  }, [brushingChecklist, patients]);
+
+  const averageCompliance = brushingOverall.averagePercentage;
 
   // Urgent complaints count
   const urgentTicketsCount = logs.filter(l => l.painLevel >= 8).length;
@@ -456,13 +440,6 @@ export default function Dashboard({
     );
   };
 
-  const handleSendWaReminder = (patient: Patient) => {
-    const cleanPhone = (patient.phone || "").replace(/\D/g, "");
-    const formattedPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
-    const msg = `Halo ${patient.name}, kami dari klinik ortodonsia ingin mengingatkan Anda untuk mengecek perkembangan behel dan mengisi buku harian perawatan gigi Anda di aplikasi Orthodontic Care. Kepatuhan Anda sangat menentukan keberhasilan dan kecepatan perawatan kawat gigi Anda. Terima kasih!`;
-    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, "_blank");
-  };
-
   const renderAuditTrailModal = () => {
     if (!auditModalPatientId) return null;
     
@@ -626,8 +603,11 @@ export default function Dashboard({
             <div className="space-y-1">
               <span className="text-xs text-gray-500 font-medium">Rata-rata Kepatuhan</span>
               <p className="text-2xl font-bold text-gray-900">{averageCompliance}%</p>
+              <p className="text-[11px] text-gray-400">
+                Rekap {brushingOverall.totalPatientsCount} pasien ({brushingOverall.totalCompletedSessions}/{brushingOverall.totalTargetSessions} sesi)
+              </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
               <Activity size={24} />
             </div>
           </div>
@@ -926,15 +906,16 @@ export default function Dashboard({
                         <span>Riwayat</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleSendWaReminder(pat)}
+                      <a
+                        href={buildPatientWaUrl(pat)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
-                        title="Kirim pesan pengingat WA ramah untuk mengecek behel"
+                        title="Kirim pengingat pengisian Buku Harian Gigi via WhatsApp"
                       >
                         <MessageCircle size={12} className="text-emerald-600" />
                         <span>Kirim WA</span>
-                      </button>
+                      </a>
                     </div>
                   </div>
                 );
@@ -963,8 +944,8 @@ export default function Dashboard({
             <div className="divide-y divide-gray-100">
               {patients.map((pat) => {
                 const latestExam = exams.filter(e => e.patientId === pat.id).sort((a, b) => b.date.localeCompare(a.date))[0];
-                const latestLog = logs.filter(l => l.patientId === pat.id).sort((a, b) => b.date.localeCompare(a.date))[0];
-                const score = latestLog ? calculateLogScore(latestLog) : 85;
+                const brushingSummary = getPatientBrushingSummary(brushingChecklist, pat.id);
+                const score = brushingSummary.percentage;
                 const comp = getComplianceStatus(score);
                 const accessStatus = getPatientAccessStatus(pat.lastAccessAt);
 
@@ -1000,7 +981,7 @@ export default function Dashboard({
                       </div>
 
                       <span className={`text-xs px-2.5 py-1 rounded-full border ${comp.color}`}>
-                        {comp.label} ({score}%)
+                        {score !== null ? `${comp.label} (${score}%)` : comp.label}
                       </span>
                     </div>
                   </div>
@@ -1069,8 +1050,9 @@ export default function Dashboard({
   // Patient Dashboard View
   const lastPatientExam = exams.filter(e => e.patientId === selectedPatientId).sort((a, b) => b.date.localeCompare(a.date))[0];
   const lastPatientLog = patientLogs.sort((a, b) => b.date.localeCompare(a.date))[0];
-  const todayScore = lastPatientLog ? calculateLogScore(lastPatientLog) : 75;
-  const currentComp = getComplianceStatus(todayScore);
+  const patientBrushingSummary = getPatientBrushingSummary(brushingChecklist, selectedPatientId);
+  const todayScore = patientBrushingSummary.percentage ?? 0;
+  const currentComp = getComplianceStatus(patientBrushingSummary.percentage);
 
   // Generate Control Reminder info based on next visit date inputted by dentist
   const controlReminder = React.useMemo(() => {
@@ -1283,8 +1265,12 @@ export default function Dashboard({
         {/* Compliance Circle */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-700">Skor Kepatuhan Hari Ini</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Berdasarkan pemantauan harian Anda</p>
+            <h3 className="text-sm font-semibold text-gray-700">Kepatuhan Sikat Gigi</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {patientBrushingSummary.totalSessions > 0
+                ? `Rekap ceklis (${patientBrushingSummary.completedSessions}/${patientBrushingSummary.totalSessions} sesi)`
+                : "Berdasarkan ceklis menyikat gigi Anda"}
+            </p>
           </div>
           
           <div className="relative w-32 h-32 flex items-center justify-center">

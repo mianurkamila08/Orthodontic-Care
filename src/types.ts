@@ -44,6 +44,14 @@ export interface SOAPExam {
     procedure: string; // Wire changes, elastics, extractions, etc.
     prescription: string; // Painkillers, wax, orthodontic products
     nextVisitDate: string;
+    archwireChange?: {
+      enabled: boolean;
+      upperArch: boolean;
+      lowerArch: boolean;
+      material: string;
+      upperSize?: string;
+      lowerSize?: string;
+    };
   };
 }
 
@@ -120,4 +128,17 @@ export interface PatientAccessLog {
   details?: string;
 }
 
+export interface BrushingDayState {
+  pagi: boolean;
+  malam: boolean;
+}
 
+export interface BrushingMonthData {
+  [day: number]: BrushingDayState;
+}
+
+export interface BrushingChecklistData {
+  [patientId: string]: {
+    [month: string]: BrushingMonthData;
+  };
+}

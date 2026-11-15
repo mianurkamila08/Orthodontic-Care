@@ -20,7 +20,8 @@ import {
   MessageCircle,
   History,
   Key,
-  Copy
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Patient, SOAPExam, PatientAccessLog, AppUser } from "../types";
 import { 
@@ -68,16 +69,13 @@ export default function RekamMedis({
   onNavigateToExam,
   accessLogs = [],
   users = [],
-  onResetPatientPassword,
 }: RekamMedisProps) {
-  const [copiedPwdUsername, setCopiedPwdUsername] = useState<string | null>(null);
-  const [resettingUser, setResettingUser] = useState<AppUser | null>(null);
-  const [resetPwdInput, setResetPwdInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [showAccessHistory, setShowAccessHistory] = useState(false);
+  const [showRmePassword, setShowRmePassword] = useState(false);
   
   // SOAP Exam Edit and Delete States
   const [examToDelete, setExamToDelete] = useState<SOAPExam | null>(null);
@@ -171,6 +169,7 @@ export default function RekamMedis({
     address: "",
     bloodType: "O",
     allergies: "",
+    patientEmail: "",
   });
 
   // Edit Form State
@@ -183,6 +182,7 @@ export default function RekamMedis({
     address: "",
     bloodType: "O",
     allergies: "",
+    patientEmail: "",
   });
 
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -419,7 +419,7 @@ export default function RekamMedis({
     if (!validateForm()) return;
 
     const newPatient: Patient = {
-      id: `P-${101 + patients.length}`,
+      id: `P-${Date.now().toString().slice(-6)}`,
       name: formData.name,
       nik: formData.nik,
       dob: formData.dob,
@@ -428,6 +428,7 @@ export default function RekamMedis({
       address: formData.address,
       bloodType: formData.bloodType,
       allergies: formData.allergies || "Tidak ada",
+      patientEmail: formData.patientEmail.trim().toLowerCase(),
       createdAt: new Date().toISOString(),
     };
 
@@ -445,6 +446,7 @@ export default function RekamMedis({
       address: "",
       bloodType: "O",
       allergies: "",
+      patientEmail: "",
     });
     setFormErrors({});
   };
@@ -483,6 +485,7 @@ export default function RekamMedis({
         address: editFormData.address,
         bloodType: editFormData.bloodType,
         allergies: editFormData.allergies || "Tidak ada",
+        patientEmail: editFormData.patientEmail.trim().toLowerCase(),
       };
       onEditPatient(updatedPatient);
       setIsEditing(false);
@@ -575,6 +578,7 @@ export default function RekamMedis({
                       address: pat.address,
                       bloodType: pat.bloodType || "O",
                       allergies: pat.allergies || "",
+                      patientEmail: pat.patientEmail || "",
                     });
                     setIsEditing(true);
                   }}
@@ -740,16 +744,29 @@ export default function RekamMedis({
                 )}
               </div>
 
-              {/* Allergies */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Riwayat Alergi (Opsional)</label>
-                <input
-                  type="text"
-                  value={formData.allergies}
-                  onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
-                  placeholder="Misal: Alergi Penisilin, Lateks, atau Makanan Laut"
-                />
+              {/* Allergies & Linked Google Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700">Riwayat Alergi (Opsional)</label>
+                  <input
+                    type="text"
+                    value={formData.allergies}
+                    onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
+                    placeholder="Misal: Alergi Penisilin, Lateks, atau Makanan Laut"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700">Email Google Pasien (Opsional)</label>
+                  <input
+                    type="email"
+                    value={formData.patientEmail}
+                    onChange={(e) => setFormData({ ...formData, patientEmail: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
+                    placeholder="Contoh: pasien@gmail.com (sinkron login Google)"
+                  />
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -895,16 +912,29 @@ export default function RekamMedis({
                 )}
               </div>
 
-              {/* Allergies */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Riwayat Alergi (Opsional)</label>
-                <input
-                  type="text"
-                  value={editFormData.allergies}
-                  onChange={(e) => setEditFormData({ ...editFormData, allergies: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
-                  placeholder="Misal: Alergi Penisilin, Lateks, atau Makanan Laut"
-                />
+              {/* Allergies & Linked Google Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700">Riwayat Alergi (Opsional)</label>
+                  <input
+                    type="text"
+                    value={editFormData.allergies}
+                    onChange={(e) => setEditFormData({ ...editFormData, allergies: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
+                    placeholder="Misal: Alergi Penisilin, Lateks, atau Makanan Laut"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700">Email Google Pasien (Opsional)</label>
+                  <input
+                    type="email"
+                    value={editFormData.patientEmail}
+                    onChange={(e) => setEditFormData({ ...editFormData, patientEmail: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500"
+                    placeholder="Contoh: pasien@gmail.com (sinkron login Google)"
+                  />
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -956,6 +986,7 @@ export default function RekamMedis({
                             address: selectedPatient.address,
                             bloodType: selectedPatient.bloodType || "O",
                             allergies: selectedPatient.allergies || "",
+                            patientEmail: selectedPatient.patientEmail || "",
                           });
                           setIsEditing(true);
                         }}
@@ -1078,110 +1109,57 @@ export default function RekamMedis({
                 </div>
               </div>
 
-              {/* Linked Patient Login Credentials (Dentist Only) */}
+              {/* Linked Firebase Account & Credentials Status (Dentist Only) */}
               {role === "dentist" && (() => {
                 const linkedAccount = users.find(
                   (u) =>
                     u.role === "patient" &&
                     (u.patientId === selectedPatient.id ||
+                      (selectedPatient.patientUsername &&
+                        u.username.toLowerCase() === selectedPatient.patientUsername.toLowerCase()) ||
+                      (selectedPatient.patientEmail &&
+                        u.email?.toLowerCase() === selectedPatient.patientEmail.toLowerCase()) ||
                       u.fullName.toLowerCase() === selectedPatient.name.toLowerCase())
                 );
-                if (!linkedAccount) return null;
+                const emailLabel = selectedPatient.patientEmail || linkedAccount?.email;
+                const usernameLabel = linkedAccount?.username || selectedPatient.patientUsername;
+                const passwordLabel = linkedAccount?.password;
+                if (!emailLabel && !linkedAccount && !usernameLabel) return null;
                 return (
                   <div className="p-3 bg-pink-50/40 border border-pink-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div className="flex flex-wrap items-center gap-2">
                       <Key size={14} className="text-pink-600 shrink-0" />
                       <span className="font-bold text-pink-950">Akun Login Pasien:</span>
-                      <span className="font-mono font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-pink-100">
-                        @{linkedAccount.username}
-                      </span>
-                      <span className="text-gray-500">Sandi Terkini:</span>
-                      <span className="font-mono font-bold text-pink-800 bg-white px-2 py-0.5 rounded border border-pink-100 select-all">
-                        {linkedAccount.password || "Belum diatur"}
-                      </span>
-                      {linkedAccount.passwordUpdatedAt && (
-                        <span className="text-[10px] text-emerald-700 font-medium">
-                          (Diubah {new Date(linkedAccount.passwordUpdatedAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })})
+                      {usernameLabel && (
+                        <span className="font-mono font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-pink-100">
+                          @{usernameLabel}
                         </span>
                       )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {linkedAccount.password && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(linkedAccount.password || "");
-                            setCopiedPwdUsername(linkedAccount.username);
-                            setTimeout(() => setCopiedPwdUsername(null), 1800);
-                          }}
-                          className="px-2.5 py-1 bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          {copiedPwdUsername === linkedAccount.username ? (
-                            <Check size={12} className="text-emerald-600" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                          <span>{copiedPwdUsername === linkedAccount.username ? "Tersalin" : "Salin Sandi"}</span>
-                        </button>
+                      {passwordLabel && (
+                        <span className="inline-flex items-center gap-1 font-mono font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-pink-100">
+                          <span>Sandi: {showRmePassword ? passwordLabel : "••••••"}</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowRmePassword(!showRmePassword)}
+                            className="text-gray-400 hover:text-gray-700 cursor-pointer"
+                            title={showRmePassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                          >
+                            {showRmePassword ? <EyeOff size={12} /> : <Eye size={12} />}
+                          </button>
+                        </span>
                       )}
-                      {onResetPatientPassword && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (resettingUser?.username === linkedAccount.username) {
-                              setResettingUser(null);
-                            } else {
-                              setResettingUser(linkedAccount);
-                              setResetPwdInput("");
-                            }
-                          }}
-                          className="px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-[11px] font-bold cursor-pointer"
-                        >
-                          Reset Sandi
-                        </button>
+                      {emailLabel && (
+                        <span className="font-mono text-[11px] text-gray-700 bg-white px-2 py-0.5 rounded border border-pink-100">
+                          {emailLabel}
+                        </span>
                       )}
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                        {linkedAccount ? "Tersinkronisasi Firebase" : "Siap Login"}
+                      </span>
                     </div>
                   </div>
                 );
               })()}
-
-              {role === "dentist" && resettingUser && onResetPatientPassword && (
-                <div className="p-3 bg-white border border-pink-200 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
-                  <span className="font-bold text-gray-700 shrink-0">
-                    Sandi baru untuk @{resettingUser.username}:
-                  </span>
-                  <input
-                    type="text"
-                    value={resetPwdInput}
-                    onChange={(e) => setResetPwdInput(e.target.value)}
-                    placeholder="Minimal 4 karakter"
-                    className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-pink-500"
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const trimmed = resetPwdInput.trim();
-                        if (trimmed.length < 4) return;
-                        onResetPatientPassword(resettingUser.username, trimmed);
-                        setResettingUser(null);
-                        setResetPwdInput("");
-                      }}
-                      disabled={resetPwdInput.trim().length < 4}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-[11px] cursor-pointer"
-                    >
-                      Simpan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResettingUser(null)}
-                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-[11px] cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Collapsible Access History */}
               {showAccessHistory && (

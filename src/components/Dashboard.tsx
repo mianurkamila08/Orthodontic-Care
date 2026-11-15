@@ -1554,7 +1554,7 @@ export default function Dashboard({
               </span>
             </div>
             <p className="text-xs text-gray-500 max-w-2xl leading-relaxed">
-              Dokter Gigi Anda ({lastPatientExam?.dentistName || "drg. Shinta Amalia, Sp.Ort"}) memantau kedisiplinan pengisian buku harian behel dan kepatuhan kontrol Anda. Total interaksi akun Anda: <strong className="text-gray-700">{currentPatient?.accessCount || 1} kali</strong>.
+              Dokter Gigi Anda ({lastPatientExam?.dentistName || "Mia Nurkamila, A.Md.Kes"}) memantau kedisiplinan pengisian buku harian behel dan kepatuhan kontrol Anda. Total interaksi akun Anda: <strong className="text-gray-700">{currentPatient?.accessCount || 1} kali</strong>.
             </p>
           </div>
         </div>

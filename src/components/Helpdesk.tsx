@@ -95,7 +95,7 @@ export default function Helpdesk({ chatHistory, onAddMessage }: HelpdeskProps) {
         "aligner": "Clear aligner gigi wajib digunakan minimal 20 hingga 22 jam setiap hari. Aligner hanya boleh dilepas saat Anda makan, minum cairan panas atau manis, dan saat menyikat gigi. Bersihkan aligner dengan air mengalir dingin/suhu ruang."
       };
 
-      let fallbackText = "Terima kasih atas pesan Anda. Kami sarankan Anda berkumur air garam hangat dan menghubungi asisten administrasi klinik kami di jam kerja untuk mendapatkan penanganan langsung oleh drg. Shinta, Sp.Ort.";
+      let fallbackText = "Terima kasih atas pesan Anda. Kami sarankan Anda berkumur air garam hangat dan menghubungi asisten administrasi klinik kami di jam kerja untuk mendapatkan penanganan langsung oleh Mia Nurkamila, A.Md.Kes.";
       
       // Match query word
       const textLower = textToSend.toLowerCase();

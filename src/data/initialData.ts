@@ -149,7 +149,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-A1",
     patientId: "P-101",
     date: "2026-04-10",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Pemasangan kawat gigi pertama kali. Pasien merasa sangat ngilu dan sulit mengunyah.",
     objective: {
       generalStatus: "TD: 120/80 mmHg, Nadi: 80x/mnt, RR: 18x/mnt. Keadaan umum baik.",
@@ -180,7 +180,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-A2",
     patientId: "P-101",
     date: "2026-05-12",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Kontrol ke-2. Ngilu awal sudah hilang, mengeluhkan sariawan karena bracket.",
     objective: {
       generalStatus: "TD: 118/78 mmHg, Nadi: 78x/mnt, RR: 16x/mnt.",
@@ -211,7 +211,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-101",
     patientId: "P-101",
     date: "2026-06-15",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Pasien mengeluhkan kawat ortodontik belakang terasa sedikit menusuk pada pipi kanan dalam sejak 2 hari yang lalu setelah kontrol rutin.",
     objective: {
       generalStatus: "TD: 120/80 mmHg, Nadi: 80x/mnt, RR: 18x/mnt. Keadaan umum baik.",
@@ -242,7 +242,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-S1",
     patientId: "P-102",
     date: "2026-04-18",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Pemasangan behel pertama rahang atas dan bawah. Pasien merasa gigi ditarik kuat.",
     objective: {
       generalStatus: "TD: 110/70 mmHg, Nadi: 76x/mnt, RR: 16x/mnt.",
@@ -273,7 +273,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-S2",
     patientId: "P-102",
     date: "2026-05-18",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Kontrol ke-2, mengeluhkan sikat gigi terasa menyakitkan karena gusi gampang berdarah.",
     objective: {
       generalStatus: "TD: 112/72 mmHg, Nadi: 78x/mnt, RR: 18x/mnt.",
@@ -304,7 +304,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-102",
     patientId: "P-102",
     date: "2026-06-20",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Kontrol bulanan rutin, merasa kencang setelah ganti wire. Pasien sangat patuh memakai karet elastis (elastics).",
     objective: {
       generalStatus: "TD: 115/75 mmHg, Nadi: 76x/mnt, RR: 16x/mnt. Keadaan umum baik.",
@@ -335,7 +335,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-M1",
     patientId: "RM-2604-1066",
     date: "2026-04-15",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Pemasangan behel atas dan bawah. Mengeluh bibir dalam tergores dan nyeri saat menggigit nasi.",
     objective: {
       generalStatus: "TD: 110/70 mmHg, Nadi: 80x/mnt, RR: 18x/mnt.",
@@ -366,7 +366,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-100-M2",
     patientId: "RM-2604-1066",
     date: "2026-05-20",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Kontrol ke-2. Nyeri sudah hilang, sikat gigi masih kadang berdarah di gusi belakang.",
     objective: {
       generalStatus: "TD: 108/68 mmHg, Nadi: 82x/mnt, RR: 16x/mnt.",
@@ -397,7 +397,7 @@ export const initialExams: SOAPExam[] = [
     id: "E-103",
     patientId: "RM-2604-1066",
     date: "2026-06-25",
-    dentistName: "drg. Shinta Amalia, Sp.Ort",
+    dentistName: "Mia Nurkamila, A.Md.Kes",
     subjective: "Kontrol ke-4 perawatan kawat gigi rahang atas dan bawah. Pasien mengeluhkan ada sariawan kecil di bibir kiri bawah karena tergesek bracket gigi taring.",
     objective: {
       generalStatus: "TD: 110/70 mmHg, Nadi: 82x/mnt, RR: 18x/mnt. Kondisi umum sehat.",

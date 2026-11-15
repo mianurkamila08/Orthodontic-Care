@@ -12,11 +12,18 @@ export interface Patient {
   lastAccessAt?: string; // ISO string of last time patient accessed/opened app
   lastAccessAction?: string; // Description of the last activity
   accessCount?: number; // Total number of times patient opened or interacted with app
+  ownerUid?: string;
+  patientEmail?: string;
+  patientUsername?: string;
+  dentistUid?: string;
 }
 
 export interface SOAPExam {
   id: string;
   patientId: string;
+  ownerUid?: string;
+  patientEmail?: string;
+  dentistUid?: string;
   date: string;
   dentistName: string;
   // SOAP elements conforming to Kemenkes Electronic Medical Record (RME)
@@ -58,6 +65,9 @@ export interface SOAPExam {
 export interface MonitoringLog {
   id: string;
   patientId: string;
+  ownerUid?: string;
+  patientEmail?: string;
+  dentistUid?: string;
   date: string;
   alignerWearHours?: number; // for clear aligners or elastics (0-24)
   elasticsCompliant?: boolean; // elastic band wear
@@ -106,11 +116,14 @@ export interface EduArticle {
 }
 
 export interface AppUser {
+  uid?: string;
+  email?: string;
   username: string;
   password?: string;
   role: 'dentist' | 'patient';
   patientId?: string;
   fullName: string;
+  authProvider?: 'google' | 'password';
   createdAt: string;
   lastLoginAt?: string;
   passwordUpdatedAt?: string;
@@ -119,6 +132,9 @@ export interface AppUser {
 export interface PatientAccessLog {
   id: string;
   patientId: string;
+  ownerUid?: string;
+  patientEmail?: string;
+  dentistUid?: string;
   patientName: string;
   timestamp: string; // ISO 8601 string
   action: 'login' | 'open_app' | 'view_rekam_medis' | 'fill_monitoring' | 'read_education' | 'ask_ai' | 'view_dashboard';

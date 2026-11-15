@@ -33,7 +33,7 @@ export default function Pemeriksaan({
   selectedPatientId,
   onAddExam,
   onNavigateToRME,
-  activeDentistName = "drg. Shinta Amalia, Sp.Ort",
+  activeDentistName = "Mia Nurkamila, A.Md.Kes",
 }: PemeriksaanProps) {
   const currentPatient = patients.find((p) => p.id === selectedPatientId) || patients[0];
   

@@ -1,0 +1,426 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public/role profile of a Google-authenticated user in Orthodontic-Care",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["dentist", "patient"]
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "username": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "patientId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "role", "fullName", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII (email, phone) belonging to a registered Google user",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "username": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "clinicPassword": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "passwordUpdatedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "AdminMember": {
+      "title": "AdminMember",
+      "description": "Authorized dentist/admin UID allowed to manage clinic records",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "fullName", "email", "createdAt"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Electronic Medical Record (RME) patient demographic and clinical link",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "patientEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "patientUsername": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "nik": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "dob": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["Laki-laki", "Perempuan"]
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "bloodType": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "allergies": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "lastAccessAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "lastAccessAction": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "accessCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerUid", "name", "nik", "dob", "gender", "phone", "address", "createdAt", "updatedAt"]
+    },
+    "SOAPExam": {
+      "title": "SOAPExam",
+      "description": "Orthodontic SOAP examination record linked to a patient",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "patientId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "patientEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "dentistName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "subjective": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "objective": {
+          "type": "object"
+        },
+        "assessment": {
+          "type": "string",
+          "maxLength": 1500
+        },
+        "plan": {
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "patientId", "ownerUid", "date", "dentistName", "subjective", "objective", "assessment", "plan", "createdAt", "updatedAt"]
+    },
+    "MonitoringLog": {
+      "title": "MonitoringLog",
+      "description": "Daily self-monitoring log submitted by an orthodontic patient",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "patientId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "patientEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "alignerWearHours": {
+          "type": "number"
+        },
+        "elasticsCompliant": {
+          "type": "boolean"
+        },
+        "painLevel": {
+          "type": "number"
+        },
+        "brushedCount": {
+          "type": "number"
+        },
+        "waxUsed": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "patientId", "ownerUid", "date", "painLevel", "brushedCount", "waxUsed", "createdAt", "updatedAt"]
+    },
+    "BrushingChecklist": {
+      "title": "BrushingChecklist",
+      "description": "Monthly toothbrushing morning/evening checklist map for a patient",
+      "type": "object",
+      "properties": {
+        "patientId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "patientEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "months": {
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["patientId", "ownerUid", "months", "createdAt", "updatedAt"]
+    },
+    "PatientAccessLog": {
+      "title": "PatientAccessLog",
+      "description": "Audit log of patient application usage and activity",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "patientId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "patientEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "patientName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "action": {
+          "type": "string",
+          "enum": ["login", "open_app", "view_rekam_medis", "fill_monitoring", "read_education", "ask_ai", "view_dashboard"]
+        },
+        "actionLabel": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "module": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "deviceInfo": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "patientId", "ownerUid", "patientName", "timestamp", "action", "actionLabel", "module", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Registered user role and RME patient linkage"
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated user PII (email and phone)"
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminMember" },
+      "description": "Authorized clinic dentist/admin directory"
+    },
+    "/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/Patient" },
+      "description": "Patient demographic profiles synced across devices"
+    },
+    "/exams/{examId}": {
+      "schema": { "$ref": "#/entities/SOAPExam" },
+      "description": "Clinical orthodontic SOAP examinations"
+    },
+    "/logs/{logId}": {
+      "schema": { "$ref": "#/entities/MonitoringLog" },
+      "description": "Patient daily dental diary monitoring entries"
+    },
+    "/brushingChecklists/{patientId}": {
+      "schema": { "$ref": "#/entities/BrushingChecklist" },
+      "description": "Monthly morning and evening toothbrushing checklists"
+    },
+    "/accessLogs/{logId}": {
+      "schema": { "$ref": "#/entities/PatientAccessLog" },
+      "description": "Patient login and activity logs"
+    }
+  }
+}

@@ -1,0 +1,450 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAuthenticatedUser() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticatedUser() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'mianurkamila08@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isAuthenticatedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'role', 'fullName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'role', 'fullName', 'username', 'patientId', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.role is string && data.role in ['dentist', 'patient']
+        && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 120
+        && (!('username' in data) || (data.username is string && data.username.size() <= 64))
+        && (!('patientId' in data) || (data.patientId is string && data.patientId.size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'username', 'phone', 'clinicPassword', 'passwordUpdatedAt', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 160
+        && (!('username' in data) || (data.username is string && data.username.size() <= 64))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 32))
+        && (!('clinicPassword' in data) || (data.clinicPassword is string && data.clinicPassword.size() <= 128))
+        && (!('passwordUpdatedAt' in data) || (data.passwordUpdatedAt is string && data.passwordUpdatedAt.size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminMember(data, userId) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'createdAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPatient(data, patientId) {
+      return data.keys().hasAll(['id', 'ownerUid', 'name', 'nik', 'dob', 'gender', 'phone', 'address', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'patientEmail', 'patientUsername', 'dentistUid', 'name', 'nik', 'dob',
+          'gender', 'phone', 'address', 'bloodType', 'allergies',
+          'lastAccessAt', 'lastAccessAction', 'accessCount', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == patientId && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 160))
+        && (!('patientUsername' in data) || (data.patientUsername is string && data.patientUsername.size() <= 64))
+        && (!('dentistUid' in data) || (data.dentistUid is string && data.dentistUid.size() <= 128))
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.nik is string && data.nik.size() <= 32
+        && data.dob is string && data.dob.size() <= 32
+        && data.gender is string && data.gender in ['Laki-laki', 'Perempuan']
+        && data.phone is string && data.phone.size() <= 32
+        && data.address is string && data.address.size() <= 300
+        && (!('bloodType' in data) || (data.bloodType is string && data.bloodType.size() <= 10))
+        && (!('allergies' in data) || (data.allergies is string && data.allergies.size() <= 300))
+        && (!('lastAccessAt' in data) || (data.lastAccessAt is string && data.lastAccessAt.size() <= 64))
+        && (!('lastAccessAction' in data) || (data.lastAccessAction is string && data.lastAccessAction.size() <= 200))
+        && (!('accessCount' in data) || (data.accessCount is number && data.accessCount >= 0))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidExam(data, examId) {
+      return data.keys().hasAll(['id', 'patientId', 'ownerUid', 'date', 'dentistName', 'subjective', 'objective', 'assessment', 'plan', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'patientId', 'ownerUid', 'patientEmail', 'dentistUid',
+          'date', 'dentistName', 'subjective', 'objective', 'assessment', 'plan',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == examId && isValidId(data.id)
+        && data.patientId is string && isValidId(data.patientId)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 160))
+        && (!('dentistUid' in data) || (data.dentistUid is string && data.dentistUid.size() <= 128))
+        && data.date is string && data.date.size() > 0 && data.date.size() <= 32
+        && data.dentistName is string && data.dentistName.size() > 0 && data.dentistName.size() <= 120
+        && data.subjective is string && data.subjective.size() <= 2000
+        && data.objective is map
+        && data.assessment is string && data.assessment.size() <= 1500
+        && data.plan is map
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMonitoringLog(data, logId) {
+      return data.keys().hasAll(['id', 'patientId', 'ownerUid', 'date', 'painLevel', 'brushedCount', 'waxUsed', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'patientId', 'ownerUid', 'patientEmail', 'dentistUid',
+          'date', 'alignerWearHours', 'elasticsCompliant', 'painLevel',
+          'brushedCount', 'waxUsed', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == logId && isValidId(data.id)
+        && data.patientId is string && isValidId(data.patientId)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 160))
+        && (!('dentistUid' in data) || (data.dentistUid is string && data.dentistUid.size() <= 128))
+        && data.date is string && data.date.size() > 0 && data.date.size() <= 32
+        && (!('alignerWearHours' in data) || (data.alignerWearHours is number && data.alignerWearHours >= 0 && data.alignerWearHours <= 24))
+        && (!('elasticsCompliant' in data) || data.elasticsCompliant is bool)
+        && data.painLevel is number && data.painLevel >= 0 && data.painLevel <= 10
+        && data.brushedCount is number && data.brushedCount >= 0 && data.brushedCount <= 20
+        && data.waxUsed is bool
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBrushingChecklist(data, patientId) {
+      return data.keys().hasAll(['patientId', 'ownerUid', 'months', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['patientId', 'ownerUid', 'patientEmail', 'dentistUid', 'months', 'createdAt', 'updatedAt'])
+        && data.patientId is string && data.patientId == patientId && isValidId(data.patientId)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 160))
+        && (!('dentistUid' in data) || (data.dentistUid is string && data.dentistUid.size() <= 128))
+        && data.months is map
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAccessLog(data, logId) {
+      return data.keys().hasAll(['id', 'patientId', 'ownerUid', 'patientName', 'timestamp', 'action', 'actionLabel', 'module', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'patientId', 'ownerUid', 'patientEmail', 'dentistUid',
+          'patientName', 'timestamp', 'action', 'actionLabel', 'module',
+          'deviceInfo', 'details', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == logId && isValidId(data.id)
+        && data.patientId is string && isValidId(data.patientId)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && (!('patientEmail' in data) || (data.patientEmail is string && data.patientEmail.size() <= 160))
+        && (!('dentistUid' in data) || (data.dentistUid is string && data.dentistUid.size() <= 128))
+        && data.patientName is string && data.patientName.size() > 0 && data.patientName.size() <= 120
+        && data.timestamp is string && data.timestamp.size() > 0 && data.timestamp.size() <= 64
+        && data.action is string && data.action in ['login', 'open_app', 'view_rekam_medis', 'fill_monitoring', 'read_education', 'ask_ai', 'view_dashboard']
+        && data.actionLabel is string && data.actionLabel.size() > 0 && data.actionLabel.size() <= 200
+        && data.module is string && data.module.size() > 0 && data.module.size() <= 120
+        && (!('deviceInfo' in data) || (data.deviceInfo is string && data.deviceInfo.size() <= 200))
+        && (!('details' in data) || (data.details is string && data.details.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 1. User Profiles & Isolated PII
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (isOwner(userId) && incoming().role == 'patient')
+        );
+      allow update: if isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().uid == existing().uid
+        && (
+          isAdmin()
+          || (
+            isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'username', 'patientId', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      match /private/{docId} {
+        allow get: if isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow list: if isBootstrappedAdmin() || isOwner(userId);
+        allow create: if isValidId(docId)
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (isOwner(userId) || isAdmin());
+        allow update: if isValidId(docId)
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().uid == existing().uid
+          && (
+            isAdmin()
+            || (
+              isOwner(userId)
+              && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'username', 'phone', 'clinicPassword', 'passwordUpdatedAt', 'updatedAt'])
+            )
+          );
+        allow delete: if isValidId(docId) && isAdmin();
+      }
+    }
+
+    // 2. Clinic Admin / Authorized Dentists Registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update: if isValidId(userId)
+        && isBootstrappedAdmin()
+        && isValidAdminMember(incoming(), userId)
+        && incoming().createdAt == request.time;
+      allow delete: if isValidId(userId) && isBootstrappedAdmin();
+    }
+
+    // 3. Patients (RME Master Profiles)
+    match /patients/{patientId} {
+      allow get: if isValidId(patientId) && (
+        isAdmin()
+        || (isAuthenticatedUser() && (
+          existing().ownerUid == request.auth.uid
+          || existing().dentistUid == request.auth.uid
+          || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+        ))
+      );
+      allow list: if isBootstrappedAdmin() || (
+        isAuthenticatedUser() && (
+          resource.data.ownerUid == request.auth.uid
+          || (('dentistUid' in resource.data) && resource.data.dentistUid == request.auth.uid)
+          || (isVerified() && ('patientEmail' in resource.data) && resource.data.patientEmail == request.auth.token.email)
+        )
+      );
+      allow create: if isValidId(patientId)
+        && isValidPatient(incoming(), patientId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (isAuthenticatedUser() && incoming().ownerUid == request.auth.uid)
+        );
+      allow update: if isValidId(patientId)
+        && isValidPatient(incoming(), patientId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().id == existing().id
+        && (
+          isAdmin()
+          || (
+            isAuthenticatedUser()
+            && (
+              existing().ownerUid == request.auth.uid
+              || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+            )
+            && incoming().ownerUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'ownerUid', 'lastAccessAt', 'lastAccessAction', 'accessCount', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(patientId) && isAdmin();
+    }
+
+    // 4. Clinical SOAP Exams
+    match /exams/{examId} {
+      allow get: if isValidId(examId) && (
+        isAdmin()
+        || (isAuthenticatedUser() && (
+          existing().ownerUid == request.auth.uid
+          || existing().dentistUid == request.auth.uid
+          || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+        ))
+      );
+      allow list: if isBootstrappedAdmin() || (
+        isAuthenticatedUser() && (
+          resource.data.ownerUid == request.auth.uid
+          || (('dentistUid' in resource.data) && resource.data.dentistUid == request.auth.uid)
+          || (isVerified() && ('patientEmail' in resource.data) && resource.data.patientEmail == request.auth.token.email)
+        )
+      );
+      allow create: if isValidId(examId)
+        && isAdmin()
+        && isValidExam(incoming(), examId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(examId)
+        && isAdmin()
+        && isValidExam(incoming(), examId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().id == existing().id;
+      allow delete: if isValidId(examId) && isAdmin();
+    }
+
+    // 5. Patient Monitoring Logs (Buku Harian Gigi)
+    match /logs/{logId} {
+      allow get: if isValidId(logId) && (
+        isAdmin()
+        || (isAuthenticatedUser() && (
+          existing().ownerUid == request.auth.uid
+          || existing().dentistUid == request.auth.uid
+          || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+        ))
+      );
+      allow list: if isBootstrappedAdmin() || (
+        isAuthenticatedUser() && (
+          resource.data.ownerUid == request.auth.uid
+          || (('dentistUid' in resource.data) && resource.data.dentistUid == request.auth.uid)
+          || (isVerified() && ('patientEmail' in resource.data) && resource.data.patientEmail == request.auth.token.email)
+        )
+      );
+      allow create: if isValidId(logId)
+        && isValidMonitoringLog(incoming(), logId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (isAuthenticatedUser() && incoming().ownerUid == request.auth.uid)
+        );
+      allow update: if isValidId(logId)
+        && isValidMonitoringLog(incoming(), logId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && (
+          isAdmin()
+          || (
+            isAuthenticatedUser()
+            && existing().ownerUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'alignerWearHours', 'elasticsCompliant', 'painLevel', 'brushedCount', 'waxUsed', 'notes', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+
+    // 6. Monthly Brushing Checklists
+    match /brushingChecklists/{patientId} {
+      allow get: if isValidId(patientId) && (
+        isAdmin()
+        || (isAuthenticatedUser() && (
+          existing().ownerUid == request.auth.uid
+          || existing().dentistUid == request.auth.uid
+          || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+        ))
+      );
+      allow list: if isBootstrappedAdmin() || (
+        isAuthenticatedUser() && (
+          resource.data.ownerUid == request.auth.uid
+          || (('dentistUid' in resource.data) && resource.data.dentistUid == request.auth.uid)
+          || (isVerified() && ('patientEmail' in resource.data) && resource.data.patientEmail == request.auth.token.email)
+        )
+      );
+      allow create: if isValidId(patientId)
+        && isValidBrushingChecklist(incoming(), patientId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (isAuthenticatedUser() && incoming().ownerUid == request.auth.uid)
+        );
+      allow update: if isValidId(patientId)
+        && isValidBrushingChecklist(incoming(), patientId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().patientId == existing().patientId
+        && (
+          isAdmin()
+          || (
+            isAuthenticatedUser()
+            && (
+              existing().ownerUid == request.auth.uid
+              || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+            )
+            && incoming().ownerUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['months', 'ownerUid', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(patientId) && isAdmin();
+    }
+
+    // 7. Patient Access Audit Logs
+    match /accessLogs/{logId} {
+      allow get: if isValidId(logId) && (
+        isAdmin()
+        || (isAuthenticatedUser() && (
+          existing().ownerUid == request.auth.uid
+          || existing().dentistUid == request.auth.uid
+          || (isVerified() && ('patientEmail' in existing()) && existing().patientEmail == request.auth.token.email)
+        ))
+      );
+      allow list: if isBootstrappedAdmin() || (
+        isAuthenticatedUser() && (
+          resource.data.ownerUid == request.auth.uid
+          || (('dentistUid' in resource.data) && resource.data.dentistUid == request.auth.uid)
+          || (isVerified() && ('patientEmail' in resource.data) && resource.data.patientEmail == request.auth.token.email)
+        )
+      );
+      allow create: if isValidId(logId)
+        && isValidAccessLog(incoming(), logId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (isAuthenticatedUser() && incoming().ownerUid == request.auth.uid)
+        );
+      allow update: if false;
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+  }
+}

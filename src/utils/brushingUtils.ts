@@ -1,14 +1,68 @@
 import { BrushingChecklistData, BrushingMonthData, Patient } from "../types";
 
+export const ENGLISH_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+export const INDONESIAN_MONTHS = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+] as const;
+
+export const getCurrentMonthKey = (date: Date = new Date()): string => {
+  return `${ENGLISH_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+export const formatMonthLabelIndo = (monthKey: string): string => {
+  const parts = monthKey.trim().split(" ");
+  const monthName = parts[0] || "";
+  const year = parts[1] || String(new Date().getFullYear());
+  const enIdx = ENGLISH_MONTHS.findIndex(
+    (m) => m.toLowerCase() === monthName.toLowerCase()
+  );
+  if (enIdx !== -1) {
+    return `${INDONESIAN_MONTHS[enIdx]} ${year}`;
+  }
+  const idIdx = INDONESIAN_MONTHS.findIndex(
+    (m) => m.toLowerCase() === monthName.toLowerCase()
+  );
+  if (idIdx !== -1) {
+    return `${INDONESIAN_MONTHS[idIdx]} ${year}`;
+  }
+  return monthKey;
+};
+
 export const getDaysInMonth = (monthStr: string): number => {
-  if (monthStr.startsWith("February")) {
-    const parts = monthStr.split(" ");
-    const year = parts[1] ? parseInt(parts[1], 10) : 2026;
+  const trimmed = monthStr.trim();
+  if (trimmed.startsWith("February") || trimmed.startsWith("Februari")) {
+    const parts = trimmed.split(" ");
+    const year = parts[1] ? parseInt(parts[1], 10) : new Date().getFullYear();
     const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
     return isLeap ? 29 : 28;
   }
-  const thirtyDays = ["April", "June", "September", "November"];
-  const match = thirtyDays.some((m) => monthStr.startsWith(m));
+  const thirtyDays = ["April", "June", "Juni", "September", "November"];
+  const match = thirtyDays.some((m) => trimmed.startsWith(m));
   return match ? 30 : 31;
 };
 

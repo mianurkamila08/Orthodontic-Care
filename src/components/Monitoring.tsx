@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Calendar, 
-  Check, 
-  ChevronDown, 
-  Award, 
-  Sparkles, 
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Calendar,
+  Check,
+  ChevronDown,
+  Award,
   Activity,
-  Smile,
-  CheckSquare
+  CheckSquare,
+  Clock,
 } from "lucide-react";
 import { MonitoringLog, Patient, BrushingMonthData, BrushingChecklistData } from "../types";
-import { getDaysInMonth, seedDefaultBrushingChecklist } from "../utils/brushingUtils";
+import {
+  ENGLISH_MONTHS,
+  formatMonthLabelIndo,
+  getCurrentMonthKey,
+  getDaysInMonth,
+  seedDefaultBrushingChecklist,
+} from "../utils/brushingUtils";
 
 interface MonitoringProps {
   logs: MonitoringLog[];
@@ -22,32 +27,27 @@ interface MonitoringProps {
 }
 
 export default function Monitoring({
-  logs,
   patients,
   selectedPatientId,
   onAddLog,
   checklist: externalChecklist,
   onUpdateChecklist,
 }: MonitoringProps) {
-  // Available Months for selection
-  const months = [
-    "January 2026",
-    "February 2026",
-    "March 2026",
-    "April 2026",
-    "May 2026",
-    "June 2026",
-    "July 2026",
-    "August 2026",
-    "September 2026",
-    "October 2026",
-    "November 2026",
-    "December 2026",
-  ];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthKey = getCurrentMonthKey(now);
+  const currentDay = now.getDate();
 
-  // Default to June 2026 as shown in screenshot
-  const [selectedMonth, setSelectedMonth] = useState<string>("June 2026");
-  
+  const todayFormattedIndo = now.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // Default to the current running month & year
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
+
   // Local state for active patient in this view
   const [activePatientId, setActivePatientId] = useState<string>(selectedPatientId);
 
@@ -78,15 +78,39 @@ export default function Monitoring({
     }
   }, [externalChecklist, localChecklist]);
 
+  // Dynamic month list for current running year + any existing recorded years for this patient
+  const monthOptions = useMemo(() => {
+    const years = new Set<number>([currentYear]);
+    const existingKeys = Object.keys(checklist[activePatientId] || {});
+    existingKeys.forEach((key) => {
+      const y = parseInt(key.split(" ")[1] || "", 10);
+      if (!Number.isNaN(y)) years.add(y);
+    });
+
+    const sortedYears = Array.from(years).sort((a, b) => a - b);
+    const list: { key: string; label: string }[] = [];
+    sortedYears.forEach((yr) => {
+      ENGLISH_MONTHS.forEach((enMonth) => {
+        const key = `${enMonth} ${yr}`;
+        list.push({
+          key,
+          label: formatMonthLabelIndo(key),
+        });
+      });
+    });
+    return list;
+  }, [currentYear, checklist, activePatientId]);
+
   const numDays = getDaysInMonth(selectedMonth);
+  const selectedMonthIndo = formatMonthLabelIndo(selectedMonth);
+  const isViewingCurrentMonth = selectedMonth === currentMonthKey;
 
   // Ensure active patient and month has an entry in local state
   const getMonthData = (): BrushingMonthData => {
     if (checklist[activePatientId] && checklist[activePatientId][selectedMonth]) {
       return checklist[activePatientId][selectedMonth];
     }
-    
-    // Return empty month data if not initialized yet
+
     const emptyData: BrushingMonthData = {};
     for (let d = 1; d <= numDays; d++) {
       emptyData[d] = { pagi: false, malam: false };
@@ -99,48 +123,48 @@ export default function Monitoring({
   // Toggle checklist session (Pagi or Malam) for a specific day
   const toggleSession = (day: number, session: "pagi" | "malam") => {
     const currentMonthData = { ...monthData };
-    
-    // If day record doesn't exist, initialize it
+
     if (!currentMonthData[day]) {
       currentMonthData[day] = { pagi: false, malam: false };
     }
 
     currentMonthData[day] = {
       ...currentMonthData[day],
-      [session]: !currentMonthData[day][session]
+      [session]: !currentMonthData[day][session],
     };
 
-    updateChecklist(prev => ({
+    updateChecklist((prev) => ({
       ...prev,
       [activePatientId]: {
         ...(prev[activePatientId] || {}),
-        [selectedMonth]: currentMonthData
-      }
+        [selectedMonth]: currentMonthData,
+      },
     }));
 
-    // Trigger log creation in backend/App.tsx logs if needed to track real history logs
-    const completedSessions = Object.values(currentMonthData).reduce((acc, curr) => {
-      let count = 0;
-      if (curr.pagi) count++;
-      if (curr.malam) count++;
-      return acc + count;
-    }, 0);
-
-    const yearMonth = selectedMonth.split(" ");
-    const monthIndex = months.indexOf(selectedMonth) + 1;
+    const [monthNamePart, yearPart] = selectedMonth.split(" ");
+    const resolvedYear = yearPart || String(currentYear);
+    const monthIndex =
+      ENGLISH_MONTHS.findIndex((m) => m.toLowerCase() === (monthNamePart || "").toLowerCase()) + 1 ||
+      now.getMonth() + 1;
     const formattedMonth = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
     const formattedDay = day < 10 ? `0${day}` : `${day}`;
-    const formattedDate = `${yearMonth[1] || "2026"}-${formattedMonth}-${formattedDay}`;
+    const formattedDate = `${resolvedYear}-${formattedMonth}-${formattedDay}`;
 
-    // Create a new log or trigger standard onAddLog
     onAddLog({
-      id: `L-S-${activePatientId}-${day}`,
+      id: `L-S-${activePatientId}-${resolvedYear}-${formattedMonth}-${formattedDay}`,
       patientId: activePatientId,
       date: formattedDate,
       painLevel: 1,
-      brushedCount: currentMonthData[day].pagi && currentMonthData[day].malam ? 2 : (currentMonthData[day].pagi || currentMonthData[day].malam ? 1 : 0),
+      brushedCount:
+        currentMonthData[day].pagi && currentMonthData[day].malam
+          ? 2
+          : currentMonthData[day].pagi || currentMonthData[day].malam
+          ? 1
+          : 0,
       waxUsed: false,
-      notes: `Sikat gigi sela harian: ${currentMonthData[day].pagi ? "Pagi (v) " : ""}${currentMonthData[day].malam ? "Malam (v)" : ""}`
+      notes: `Sikat gigi sela harian (${selectedMonthIndo}): ${currentMonthData[day].pagi ? "Pagi (v) " : ""}${
+        currentMonthData[day].malam ? "Malam (v)" : ""
+      }`,
     });
   };
 
@@ -153,28 +177,28 @@ export default function Monitoring({
     return acc + count;
   }, 0);
 
-  const compliancePercentage = totalSessions > 0
-    ? Math.round((completedSessions / totalSessions) * 100)
-    : 0;
-
-  // Selected patient details
-  const selectedPatient = patients.find(p => p.id === activePatientId) || patients[0];
+  const compliancePercentage =
+    totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
   return (
     <div className="space-y-6" id="monitoring-root">
-      {/* Header Container exactly matching the screenshot */}
+      {/* Header Container */}
       <div className="bg-white p-6 rounded-2xl border border-pink-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <h1 className="text-xl font-bold text-pink-600 flex items-center gap-2">
             <CheckSquare className="text-pink-600" size={24} />
             Monitoring Sikat Gigi
           </h1>
           <p className="text-xs text-gray-500 font-medium">
-            Ceklis rutinitas menyikat gigi 2x sehari (Pagi setelah sarapan & Malam sebelum tidur).
+            Ceklis rutinitas menyikat gigi 2x sehari (Pagi setelah sarapan &amp; Malam sebelum tidur).
           </p>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-pink-700 bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-100">
+            <Clock size={12} className="text-pink-500" />
+            <span>Hari Ini: {todayFormattedIndo}</span>
+          </div>
         </div>
 
-        {/* Month Selector exactly matching the top right section */}
+        {/* Dynamic Month Selector */}
         <div className="flex items-center gap-2 bg-pink-50/50 px-3 py-1.5 rounded-xl border border-pink-100 shrink-0 self-stretch md:self-auto">
           <span className="text-xs font-bold text-pink-700">Pilih Bulan:</span>
           <div className="relative flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden px-2 py-1 gap-1">
@@ -183,8 +207,10 @@ export default function Monitoring({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="text-xs font-bold text-gray-800 bg-transparent pr-6 focus:outline-none cursor-pointer appearance-none"
             >
-              {months.map((m) => (
-                <option key={m} value={m}>{m}</option>
+              {monthOptions.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
               ))}
             </select>
             <Calendar size={14} className="text-pink-600 absolute right-2 pointer-events-none" />
@@ -218,21 +244,18 @@ export default function Monitoring({
         <div className="flex justify-between items-center text-xs font-bold">
           <span className="text-pink-700 flex items-center gap-1.5">
             <Activity size={16} className="text-pink-500 animate-pulse" />
-            Kepatuhan Bulan Ini: {compliancePercentage}%
+            Kepatuhan Bulan {selectedMonthIndo}: {compliancePercentage}%
           </span>
           <span className="text-pink-700 bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100">
             {completedSessions} / {totalSessions} Sesi
           </span>
         </div>
 
-        {/* Outer bar */}
         <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-          {/* Active bar with solid pink/red matching screenshot */}
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-500 ease-out relative"
             style={{ width: `${compliancePercentage}%` }}
           >
-            {/* Subtle stripe effect */}
             <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-pulse"></div>
           </div>
         </div>
@@ -244,31 +267,47 @@ export default function Monitoring({
           const dayNum = index + 1;
           const isPagiChecked = monthData[dayNum]?.pagi || false;
           const isMalamChecked = monthData[dayNum]?.malam || false;
+          const isToday = isViewingCurrentMonth && dayNum === currentDay;
 
           return (
-            <div 
+            <div
               key={dayNum}
-              className="bg-white rounded-xl border border-pink-100 shadow-sm hover:border-pink-300 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+              className={`bg-white rounded-xl transition-all overflow-hidden flex flex-col justify-between ${
+                isToday
+                  ? "border-2 border-pink-500 shadow-md ring-2 ring-pink-200/70"
+                  : "border border-pink-100 shadow-sm hover:border-pink-300 hover:shadow-md"
+              }`}
             >
               {/* Day Header Block */}
-              <div className="bg-pink-50/50 py-1.5 text-center border-b border-pink-50">
-                <span className="text-xs font-extrabold text-pink-700">H-{dayNum}</span>
+              <div
+                className={`py-1.5 px-2 text-center border-b flex items-center justify-center gap-1.5 ${
+                  isToday ? "bg-pink-500 border-pink-500 text-white" : "bg-pink-50/50 border-pink-50"
+                }`}
+              >
+                <span className={`text-xs font-extrabold ${isToday ? "text-white" : "text-pink-700"}`}>
+                  H-{dayNum}
+                </span>
+                {isToday && (
+                  <span className="text-[9px] font-black uppercase bg-white text-pink-600 px-1.5 py-0.2 rounded-full">
+                    Hari Ini
+                  </span>
+                )}
               </div>
 
               {/* Checkbox Rows (Pagi & Malam) */}
               <div className="p-3 grid grid-cols-2 gap-2 text-center">
-                
                 {/* Pagi */}
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[10px] font-bold text-gray-500 uppercase">Pagi</span>
                   <button
+                    type="button"
                     onClick={() => toggleSession(dayNum, "pagi")}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all ${
-                      isPagiChecked 
-                        ? "bg-pink-500 border-pink-500 text-white shadow-sm" 
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all cursor-pointer ${
+                      isPagiChecked
+                        ? "bg-pink-500 border-pink-500 text-white shadow-sm"
                         : "bg-white border-gray-200 hover:border-pink-300 text-transparent"
                     }`}
-                    title={`Pagi Hari ke-${dayNum}`}
+                    title={`Pagi Tanggal ${dayNum} ${selectedMonthIndo}`}
                   >
                     <Check size={16} strokeWidth={3} className={isPagiChecked ? "scale-100" : "scale-0"} />
                   </button>
@@ -278,18 +317,18 @@ export default function Monitoring({
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[10px] font-bold text-gray-500 uppercase">Malam</span>
                   <button
+                    type="button"
                     onClick={() => toggleSession(dayNum, "malam")}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all ${
-                      isMalamChecked 
-                        ? "bg-pink-500 border-pink-500 text-white shadow-sm" 
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all cursor-pointer ${
+                      isMalamChecked
+                        ? "bg-pink-500 border-pink-500 text-white shadow-sm"
                         : "bg-white border-gray-200 hover:border-pink-300 text-transparent"
                     }`}
-                    title={`Malam Hari ke-${dayNum}`}
+                    title={`Malam Tanggal ${dayNum} ${selectedMonthIndo}`}
                   >
                     <Check size={16} strokeWidth={3} className={isMalamChecked ? "scale-100" : "scale-0"} />
                   </button>
                 </div>
-
               </div>
             </div>
           );
@@ -300,7 +339,9 @@ export default function Monitoring({
       <div className="bg-pink-50/30 p-4 rounded-xl border border-pink-100 flex items-center gap-3 text-xs text-pink-800 leading-relaxed">
         <Award className="text-pink-600 shrink-0" size={24} />
         <div>
-          <strong>Tips Kepatuhan Ortodonti:</strong> Menjaga kepatuhan menyikat gigi minimal 2 kali sehari secara konsisten sangat vital bagi pengguna kawat gigi untuk mencegah penumpukan plak dan peradangan gingiva di sekitar bracket.
+          <strong>Tips Kepatuhan Ortodonti:</strong> Menjaga kepatuhan menyikat gigi minimal 2 kali sehari secara
+          konsisten sangat vital bagi pengguna kawat gigi untuk mencegah penumpukan plak dan peradangan gingiva di
+          sekitar bracket.
         </div>
       </div>
     </div>

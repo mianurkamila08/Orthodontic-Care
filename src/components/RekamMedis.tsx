@@ -18,9 +18,11 @@ import {
   Smartphone,
   Monitor,
   MessageCircle,
-  History
+  History,
+  Key,
+  Copy
 } from "lucide-react";
-import { Patient, SOAPExam, PatientAccessLog } from "../types";
+import { Patient, SOAPExam, PatientAccessLog, AppUser } from "../types";
 import { 
   getPatientAccessStatus, 
   formatRelativeTime, 
@@ -48,6 +50,8 @@ interface RekamMedisProps {
   onDeleteExam?: (id: string) => void;
   onNavigateToExam: () => void;
   accessLogs?: PatientAccessLog[];
+  users?: AppUser[];
+  onResetPatientPassword?: (username: string, newPassword: string) => void;
 }
 
 export default function RekamMedis({
@@ -63,7 +67,12 @@ export default function RekamMedis({
   onDeleteExam,
   onNavigateToExam,
   accessLogs = [],
+  users = [],
+  onResetPatientPassword,
 }: RekamMedisProps) {
+  const [copiedPwdUsername, setCopiedPwdUsername] = useState<string | null>(null);
+  const [resettingUser, setResettingUser] = useState<AppUser | null>(null);
+  const [resetPwdInput, setResetPwdInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -1068,6 +1077,111 @@ export default function RekamMedis({
                   </a>
                 </div>
               </div>
+
+              {/* Linked Patient Login Credentials (Dentist Only) */}
+              {role === "dentist" && (() => {
+                const linkedAccount = users.find(
+                  (u) =>
+                    u.role === "patient" &&
+                    (u.patientId === selectedPatient.id ||
+                      u.fullName.toLowerCase() === selectedPatient.name.toLowerCase())
+                );
+                if (!linkedAccount) return null;
+                return (
+                  <div className="p-3 bg-pink-50/40 border border-pink-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Key size={14} className="text-pink-600 shrink-0" />
+                      <span className="font-bold text-pink-950">Akun Login Pasien:</span>
+                      <span className="font-mono font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-pink-100">
+                        @{linkedAccount.username}
+                      </span>
+                      <span className="text-gray-500">Sandi Terkini:</span>
+                      <span className="font-mono font-bold text-pink-800 bg-white px-2 py-0.5 rounded border border-pink-100 select-all">
+                        {linkedAccount.password || "Belum diatur"}
+                      </span>
+                      {linkedAccount.passwordUpdatedAt && (
+                        <span className="text-[10px] text-emerald-700 font-medium">
+                          (Diubah {new Date(linkedAccount.passwordUpdatedAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {linkedAccount.password && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(linkedAccount.password || "");
+                            setCopiedPwdUsername(linkedAccount.username);
+                            setTimeout(() => setCopiedPwdUsername(null), 1800);
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedPwdUsername === linkedAccount.username ? (
+                            <Check size={12} className="text-emerald-600" />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                          <span>{copiedPwdUsername === linkedAccount.username ? "Tersalin" : "Salin Sandi"}</span>
+                        </button>
+                      )}
+                      {onResetPatientPassword && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (resettingUser?.username === linkedAccount.username) {
+                              setResettingUser(null);
+                            } else {
+                              setResettingUser(linkedAccount);
+                              setResetPwdInput("");
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                        >
+                          Reset Sandi
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {role === "dentist" && resettingUser && onResetPatientPassword && (
+                <div className="p-3 bg-white border border-pink-200 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
+                  <span className="font-bold text-gray-700 shrink-0">
+                    Sandi baru untuk @{resettingUser.username}:
+                  </span>
+                  <input
+                    type="text"
+                    value={resetPwdInput}
+                    onChange={(e) => setResetPwdInput(e.target.value)}
+                    placeholder="Minimal 4 karakter"
+                    className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-pink-500"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = resetPwdInput.trim();
+                        if (trimmed.length < 4) return;
+                        onResetPatientPassword(resettingUser.username, trimmed);
+                        setResettingUser(null);
+                        setResetPwdInput("");
+                      }}
+                      disabled={resetPwdInput.trim().length < 4}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-[11px] cursor-pointer"
+                    >
+                      Simpan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResettingUser(null)}
+                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-[11px] cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Collapsible Access History */}
               {showAccessHistory && (

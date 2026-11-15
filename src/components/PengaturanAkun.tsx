@@ -11,7 +11,8 @@ import {
   UserCheck,
   User,
   Check,
-  ArrowRight
+  ArrowRight,
+  Copy
 } from "lucide-react";
 import { Patient, AppUser } from "../types";
 
@@ -39,6 +40,8 @@ export default function PengaturanAkun({
 }: PengaturanAkunProps) {
   // Tabs within Account Settings: "profil", "buat-akun", "daftar-akun"
   const [activeSubTab, setActiveSubTab] = useState<"profil" | "buat-akun" | "daftar-akun">("profil");
+  const isDentist = currentUser.role === "dentist";
+  const effectiveSubTab = isDentist ? activeSubTab : "profil";
 
   // State for Change Password Form
   const [oldPassword, setOldPassword] = useState("");
@@ -56,6 +59,17 @@ export default function PengaturanAkun({
   const [regError, setRegError] = useState("");
   const [regSuccess, setRegSuccess] = useState("");
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
+  const [copiedUsername, setCopiedUsername] = useState<string | null>(null);
+  const [userToReset, setUserToReset] = useState<AppUser | null>(null);
+  const [resetNewPwd, setResetNewPwd] = useState("");
+  const [resetPwdError, setResetPwdError] = useState("");
+
+  const handleCopyPassword = (uname: string, pwd?: string) => {
+    if (!pwd) return;
+    navigator.clipboard?.writeText(pwd);
+    setCopiedUsername(uname);
+    setTimeout(() => setCopiedUsername(null), 1800);
+  };
 
   // Password Update handler
   const handleUpdatePassword = (e: React.FormEvent) => {
@@ -80,7 +94,7 @@ export default function PengaturanAkun({
 
     // Call callback to persist password change
     onChangePassword(currentUser.username, newPassword);
-    setPwdSuccess("Password berhasil diperbarui!");
+    setPwdSuccess("Kata sandi berhasil diperbarui dan langsung tersinkronisasi ke daftar akun dokter!");
     setOldPassword("");
     setNewPassword("");
     setConfirmNewPassword("");
@@ -163,11 +177,15 @@ export default function PengaturanAkun({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-xl font-display font-black text-gray-900 tracking-tight">Pengaturan Akun</h2>
-          <p className="text-xs text-gray-500">Kelola kredensial akun Anda, buat pengguna baru, dan pantau rekam akses sistem.</p>
+          <p className="text-xs text-gray-500">
+            {isDentist
+              ? "Kelola kredensial akun Anda, buat pengguna baru, dan pantau daftar seluruh akun sistem."
+              : "Kelola profil sesi login dan keamanan kata sandi akun Anda."}
+          </p>
         </div>
         <div className="flex items-center gap-1.5 text-xs font-bold text-pink-600 bg-pink-50 px-3 py-1.5 rounded-xl border border-pink-100">
           <ShieldCheck size={14} />
-          <span>Role Aktif: {currentUser.role === "dentist" ? "Spesialis Ortodonti" : "Pasien Terdaftar"}</span>
+          <span>Role Aktif: {isDentist ? "Spesialis Ortodonti" : "Pasien Terdaftar"}</span>
         </div>
       </div>
 
@@ -179,8 +197,8 @@ export default function PengaturanAkun({
             setPwdError("");
             setPwdSuccess("");
           }}
-          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeSubTab === "profil"
+          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 cursor-pointer ${
+            effectiveSubTab === "profil"
               ? "border-pink-500 text-pink-600"
               : "border-transparent text-gray-500 hover:text-gray-800"
           }`}
@@ -188,41 +206,45 @@ export default function PengaturanAkun({
           <Lock size={13} />
           <span>Profil & Keamanan</span>
         </button>
-        <button
-          onClick={() => {
-            setActiveSubTab("buat-akun");
-            setRegError("");
-            setRegSuccess("");
-          }}
-          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeSubTab === "buat-akun"
-              ? "border-pink-500 text-pink-600"
-              : "border-transparent text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          <UserPlus size={13} />
-          <span>Buat Akun Baru</span>
-        </button>
-        <button
-          onClick={() => {
-            setActiveSubTab("daftar-akun");
-          }}
-          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeSubTab === "daftar-akun"
-              ? "border-pink-500 text-pink-600"
-              : "border-transparent text-gray-500 hover:text-gray-800"
-          }`}
-        >
-          <Users size={13} />
-          <span>Daftar Seluruh Akun ({users.length})</span>
-        </button>
+        {isDentist && (
+          <>
+            <button
+              onClick={() => {
+                setActiveSubTab("buat-akun");
+                setRegError("");
+                setRegSuccess("");
+              }}
+              className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 cursor-pointer ${
+                effectiveSubTab === "buat-akun"
+                  ? "border-pink-500 text-pink-600"
+                  : "border-transparent text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              <UserPlus size={13} />
+              <span>Buat Akun Baru</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveSubTab("daftar-akun");
+              }}
+              className={`px-4 py-2 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-1.5 cursor-pointer ${
+                effectiveSubTab === "daftar-akun"
+                  ? "border-pink-500 text-pink-600"
+                  : "border-transparent text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              <Users size={13} />
+              <span>Daftar Seluruh Akun ({users.length})</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Content Area */}
       <div className="grid grid-cols-1 gap-6">
 
         {/* SUBTAB 1: Profile & Current Password Change */}
-        {activeSubTab === "profil" && (
+        {effectiveSubTab === "profil" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Session Card Info */}
@@ -333,8 +355,8 @@ export default function PengaturanAkun({
           </div>
         )}
 
-        {/* SUBTAB 2: Create New Account Form */}
-        {activeSubTab === "buat-akun" && (
+        {/* SUBTAB 2: Create New Account Form (Dentist Only) */}
+        {isDentist && effectiveSubTab === "buat-akun" && (
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm max-w-2xl space-y-6">
             
             <div className="border-b border-gray-100 pb-3">
@@ -484,8 +506,8 @@ export default function PengaturanAkun({
           </div>
         )}
 
-        {/* SUBTAB 3: Registered Accounts Directory */}
-        {activeSubTab === "daftar-akun" && (
+        {/* SUBTAB 3: Registered Accounts Directory (Dentist Only) */}
+        {isDentist && effectiveSubTab === "daftar-akun" && (
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -506,7 +528,7 @@ export default function PengaturanAkun({
                     <th className="py-2.5 px-3">Nama Pengguna (Username)</th>
                     <th className="py-2.5 px-3">Nama Lengkap & Profil</th>
                     <th className="py-2.5 px-3">Hak Akses / Role</th>
-                    <th className="py-2.5 px-3">Kunci Sandi (Untuk Demo)</th>
+                    <th className="py-2.5 px-3">Kata Sandi Terkini</th>
                     <th className="py-2.5 px-3 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -542,25 +564,65 @@ export default function PengaturanAkun({
                             {u.role === "dentist" ? "Dokter" : "Pasien"}
                           </span>
                         </td>
-                        <td className="py-3 px-3 font-mono text-gray-500 select-all" title="Klik ganda untuk menyalin">
-                          {u.password || "••••••••"}
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-gray-700 bg-gray-100 px-2 py-0.5 rounded select-all">
+                              {u.password || "••••••••"}
+                            </span>
+                            {u.password && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyPassword(u.username, u.password)}
+                                className="p-1 text-gray-400 hover:text-pink-600 rounded transition-all cursor-pointer"
+                                title="Salin kata sandi"
+                              >
+                                {copiedUsername === u.username ? (
+                                  <Check size={12} className="text-emerald-600" />
+                                ) : (
+                                  <Copy size={12} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                          {u.passwordUpdatedAt && (
+                            <span className="text-[9px] text-emerald-700 font-medium block mt-0.5">
+                              Diperbarui: {new Date(u.passwordUpdatedAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-right">
-                          {isSystemAdmin ? (
-                            <span className="text-[10px] text-gray-400 italic">Default</span>
-                          ) : isActiveUser ? (
-                            <span className="text-[10px] text-pink-600 font-bold">Sedang Digunakan</span>
-                          ) : (
+                          <div className="inline-flex items-center gap-1.5">
                             <button
+                              type="button"
                               onClick={() => {
-                                setUserToDelete(u);
+                                setUserToReset(u);
+                                setResetNewPwd("");
+                                setResetPwdError("");
                               }}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 text-rose-500 rounded-lg transition-all"
-                              title="Hapus Akun"
+                              className="px-2 py-1 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg text-[10px] font-bold transition-all inline-flex items-center gap-1 cursor-pointer"
+                              title="Reset kata sandi akun ini"
                             >
-                              <Trash2 size={13} />
+                              <Key size={11} />
+                              <span>Reset</span>
                             </button>
-                          )}
+
+                            {isSystemAdmin ? (
+                              <span className="text-[10px] text-gray-400 italic px-1">Default</span>
+                            ) : isActiveUser ? (
+                              <span className="text-[10px] text-pink-600 font-bold px-1">Aktif</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setUserToDelete(u);
+                                }}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 text-rose-500 rounded-lg transition-all cursor-pointer"
+                                title="Hapus Akun"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -615,6 +677,67 @@ export default function PengaturanAkun({
                 className="flex-1 py-2 text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-sm transition-all cursor-pointer"
               >
                 Ya, Hapus Akun
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Doctor Reset Password Modal */}
+      {userToReset && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
+                <Key size={18} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-gray-900">Reset Kata Sandi Pengguna</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Atur kata sandi baru untuk akun <strong className="text-gray-800 font-bold">@{userToReset.username}</strong> ({userToReset.fullName}).
+                </p>
+              </div>
+            </div>
+
+            {resetPwdError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                {resetPwdError}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-700 block">Kata Sandi Baru</label>
+              <input
+                type="text"
+                value={resetNewPwd}
+                onChange={(e) => setResetNewPwd(e.target.value)}
+                placeholder="Minimal 4 karakter"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-pink-500 font-mono"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setUserToReset(null)}
+                className="flex-1 py-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = resetNewPwd.trim();
+                  if (trimmed.length < 4) {
+                    setResetPwdError("Kata sandi minimal 4 karakter.");
+                    return;
+                  }
+                  onChangePassword(userToReset.username, trimmed);
+                  setUserToReset(null);
+                }}
+                className="flex-1 py-2 text-xs font-bold bg-pink-500 hover:bg-pink-600 text-white rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                Simpan Kata Sandi
               </button>
             </div>
           </div>

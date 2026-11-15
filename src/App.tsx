@@ -321,10 +321,33 @@ export default function App() {
     setUsers((prev) => [...prev, newUser]);
   };
 
-  const handleChangePassword = (username: string, newPassword: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.username.toLowerCase() === username.toLowerCase() ? { ...u, password: newPassword } : u))
+  const handleChangePassword = (targetUsername: string, newPassword: string) => {
+    const nowIso = new Date().toISOString();
+    const matchedTargetUser = users.find(
+      (u) => u.username.toLowerCase() === targetUsername.toLowerCase()
     );
+
+    setUsers((prev) => {
+      const updated = prev.map((u) =>
+        u.username.toLowerCase() === targetUsername.toLowerCase()
+          ? { ...u, password: newPassword, passwordUpdatedAt: nowIso }
+          : u
+      );
+      localStorage.setItem("ortho_users", JSON.stringify(updated));
+      return updated;
+    });
+
+    if (matchedTargetUser?.role === "patient" && matchedTargetUser.patientId) {
+      handleRecordPatientAccess(
+        matchedTargetUser.patientId,
+        "open_app",
+        role === "patient" ? "Mengubah Kata Sandi" : "Reset Kata Sandi oleh Dokter",
+        "Pengaturan Akun",
+        role === "patient"
+          ? "Pasien memperbarui kata sandi akun (otomatis tersinkronisasi ke daftar akun dokter)"
+          : "Dokter memperbarui kata sandi akun pasien"
+      );
+    }
   };
 
   const handleDeleteUser = (username: string) => {
@@ -348,6 +371,8 @@ export default function App() {
       }
       return filtered;
     });
+    setExams((prev) => prev.filter((e) => e.patientId !== patientId));
+    setLogs((prev) => prev.filter((l) => l.patientId !== patientId));
     setAccessLogs((prev) => prev.filter((l) => l.patientId !== patientId));
     setBrushingChecklist((prev) => {
       const next = { ...prev };
@@ -533,11 +558,20 @@ export default function App() {
       localStorage.setItem("ortho_selected_patient_id", targetPatientId);
       
       const genUsername = accountEmail.split("@")[0].replace(/[^a-zA-Z0-9_.]/g, "").toLowerCase() || "google_user";
-      setLoggedInUsername(genUsername);
-      localStorage.setItem("ortho_logged_in_username", genUsername);
+      const existingAppUser = users.find(
+        (u) =>
+          u.role === "patient" &&
+          ((targetPatientId && u.patientId === targetPatientId) ||
+            u.username.toLowerCase() === genUsername ||
+            u.fullName.toLowerCase() === accountName.toLowerCase())
+      );
 
-      // Also ensure user exists in users list
-      if (!users.some(u => u.username.toLowerCase() === genUsername)) {
+      if (existingAppUser) {
+        setLoggedInUsername(existingAppUser.username);
+        localStorage.setItem("ortho_logged_in_username", existingAppUser.username);
+      } else {
+        setLoggedInUsername(genUsername);
+        localStorage.setItem("ortho_logged_in_username", genUsername);
         const newGoogleUser: AppUser = {
           username: genUsername,
           password: "google_oauth_user",
@@ -1055,68 +1089,6 @@ export default function App() {
                 </button>
               </form>
 
-              {/* Fast Host Access (1 Dentist & 1 Patient Only) */}
-              {(() => {
-                const hostAccounts = [
-                  users.find((u) => u.username === "drg.shinta") || DEFAULT_SYSTEM_USERS[0],
-                  users.find((u) => u.username === "aditya") || DEFAULT_SYSTEM_USERS[1],
-                ];
-                return (
-                  <div className="bg-pink-50/40 p-3.5 rounded-2xl border border-pink-100 space-y-2.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-pink-800 tracking-wider">
-                        Akses Cepat Akun Host (2 Role)
-                      </span>
-                      <span className="text-[9px] text-pink-500 font-medium">Klik untuk isi otomatis</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {hostAccounts.map((u) => {
-                        const isSelected = username.toLowerCase() === u.username.toLowerCase();
-                        return (
-                          <button
-                            key={u.username}
-                            type="button"
-                            onClick={() => {
-                              setUsername(u.username);
-                              setPassword(u.password || "");
-                              setRole(u.role);
-                              setLoginError("");
-                            }}
-                            className={`p-2 text-left rounded-xl border text-[10px] transition-all cursor-pointer flex flex-col justify-between ${
-                              isSelected
-                                ? "bg-pink-500 text-white border-pink-500 shadow-xs"
-                                : "bg-white hover:bg-pink-50/50 text-gray-700 border-gray-200"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-bold truncate">{u.fullName}</span>
-                              <span className={`text-[8px] font-extrabold px-1 rounded uppercase ${
-                                isSelected 
-                                  ? "bg-white/20 text-white" 
-                                  : u.role === "dentist" 
-                                    ? "bg-purple-100 text-purple-700" 
-                                    : "bg-blue-100 text-blue-700"
-                              }`}>
-                                {u.role === "dentist" ? "Host Dokter" : "Host Pasien"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between mt-1 opacity-80 font-mono text-[9px]">
-                              <span>@{u.username}</span>
-                              <span className="truncate">sandi: {u.password}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="text-[9px] text-center text-pink-600/90 pt-1 border-t border-pink-100/60">
-                      Akun terdaftar lainnya dapat masuk melalui form login di atas, atau klik <strong>"Daftar Akun Baru"</strong>.
-                    </div>
-                  </div>
-                );
-              })()}
-
             </div>
           )}
 
@@ -1494,6 +1466,8 @@ export default function App() {
               onDeleteExam={handleDeleteExam}
               onNavigateToExam={() => handleNavigateTab("pemeriksaan")}
               accessLogs={accessLogs}
+              users={role === "dentist" ? users : undefined}
+              onResetPatientPassword={role === "dentist" ? handleChangePassword : undefined}
             />
           )}
 
@@ -1549,8 +1523,8 @@ export default function App() {
                 role: role,
                 patientId: role === "patient" ? selectedPatientId : undefined
               }}
-              patients={patients}
-              users={users}
+              patients={role === "dentist" ? patients : patients.filter((p) => p.id === selectedPatientId)}
+              users={role === "dentist" ? users : []}
               onAddUser={handleAddUser}
               onChangePassword={handleChangePassword}
               onDeleteUser={handleDeleteUser}

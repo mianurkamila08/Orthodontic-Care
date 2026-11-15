@@ -53,9 +53,25 @@ export default function Dashboard({
   accessLogs = [],
   brushingChecklist = {},
 }: DashboardProps) {
+  // Scope exams and logs strictly to active patients recorded in Rekam Medis (RME)
+  const validPatientIds = React.useMemo(
+    () => new Set(patients.map((p) => p.id)),
+    [patients]
+  );
+
+  const validExams = React.useMemo(
+    () => exams.filter((e) => validPatientIds.has(e.patientId)),
+    [exams, validPatientIds]
+  );
+
+  const validLogs = React.useMemo(
+    () => logs.filter((l) => validPatientIds.has(l.patientId)),
+    [logs, validPatientIds]
+  );
+
   // Common Calculations
   const activePatientCount = patients.length;
-  const totalExamsCount = exams.length;
+  const totalExamsCount = validExams.length;
 
   const getComplianceStatus = (score: number | null) => {
     if (score === null) return { label: "Belum Diisi", color: "bg-gray-100 text-gray-600 border-gray-200" };
@@ -64,7 +80,7 @@ export default function Dashboard({
     return { label: "Kurang Patuh", color: "bg-rose-100 text-rose-800 border-rose-200" };
   };
 
-  const patientLogs = logs.filter(l => l.patientId === selectedPatientId);
+  const patientLogs = validLogs.filter(l => l.patientId === selectedPatientId);
   const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
 
   // Overall compliance strictly from recapitulation of all patients' tooth brushing checklists
@@ -74,8 +90,9 @@ export default function Dashboard({
 
   const averageCompliance = brushingOverall.averagePercentage;
 
-  // Urgent complaints count
-  const urgentTicketsCount = logs.filter(l => l.painLevel >= 8).length;
+  // Urgent complaints from active RME patients
+  const urgentLogs = validLogs.filter(l => l.painLevel >= 8);
+  const urgentTicketsCount = urgentLogs.length;
 
   // Patient Access Tracking States & Metrics
   const [accessFilter, setAccessFilter] = React.useState<"all" | "today" | "inactive">("all");
@@ -122,55 +139,73 @@ export default function Dashboard({
   // PCR Chart States & Calculations
   const [selectedChartPatientId, setSelectedChartPatientId] = React.useState<string>("all");
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+  const effectiveChartPatientId =
+    selectedChartPatientId === "all" || validPatientIds.has(selectedChartPatientId)
+      ? selectedChartPatientId
+      : "all";
+
+  const getFilteredPcrExams = (targetPatientId: string) => {
+    const baseExams =
+      targetPatientId === "all"
+        ? validExams
+        : validExams.filter((e) => e.patientId === targetPatientId);
+
+    return baseExams
+      .filter(
+        (e) =>
+          typeof e.objective.pcrScore === "number" &&
+          !Number.isNaN(e.objective.pcrScore)
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
+  };
 
   const getPcrChartData = (targetPatientId: string) => {
-    let filteredExams = [];
-    if (targetPatientId === "all") {
-      filteredExams = exams.filter(e => e.objective.pcrScore !== undefined);
-    } else {
-      filteredExams = exams.filter(e => e.patientId === targetPatientId && e.objective.pcrScore !== undefined);
-    }
-
-    // Sort by date ascending
-    const sorted = [...filteredExams].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = getFilteredPcrExams(targetPatientId);
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
 
     if (targetPatientId === "all") {
-      const grouped: { [key: string]: { sum: number, count: number, details: any[] } } = {};
+      const grouped: { [key: string]: { sum: number; count: number } } = {};
       sorted.forEach(e => {
-        const monthKey = e.date.substring(0, 7); // "2026-04"
+        const monthKey = e.date.substring(0, 7); // "YYYY-MM"
         if (!grouped[monthKey]) {
-          grouped[monthKey] = { sum: 0, count: 0, details: [] };
+          grouped[monthKey] = { sum: 0, count: 0 };
         }
-        if (e.objective.pcrScore !== undefined) {
-          grouped[monthKey].sum += e.objective.pcrScore;
-          grouped[monthKey].count += 1;
-          grouped[monthKey].details.push(e);
-        }
+        grouped[monthKey].sum += e.objective.pcrScore as number;
+        grouped[monthKey].count += 1;
       });
 
       return Object.keys(grouped).sort().map(monthKey => {
         const avg = Number((grouped[monthKey].sum / grouped[monthKey].count).toFixed(1));
         const year = monthKey.split("-")[0];
         const monthNum = parseInt(monthKey.split("-")[1], 10);
-        const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+        const monthLabel = months[monthNum - 1] ? `${months[monthNum - 1]} ${year}` : monthKey;
         return {
-          month: `${months[monthNum - 1]} ${year}`,
+          month: monthLabel,
           score: avg,
           count: grouped[monthKey].count,
           interpretation: avg < 10 ? "Baik" : "Buruk",
-          label: `${avg}% (Rata-rata dari ${grouped[monthKey].count} pemeriksaan)`
+          label: `${avg}% (Rata-rata dari ${grouped[monthKey].count} pemeriksaan RME)`
         };
       });
     } else {
+      const monthCounts: Record<string, number> = {};
+      sorted.forEach((e) => {
+        const mk = e.date.substring(0, 7);
+        monthCounts[mk] = (monthCounts[mk] || 0) + 1;
+      });
+
       return sorted.map(e => {
-        const year = e.date.split("-")[0];
-        const monthNum = parseInt(e.date.split("-")[1], 10);
-        const day = e.date.split("-")[2];
-        const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
-        const score = e.objective.pcrScore || 0;
+        const parts = e.date.split("-");
+        const year = parts[0] || "";
+        const monthNum = parseInt(parts[1] || "1", 10);
+        const day = parts[2] || "";
+        const monthName = months[monthNum - 1] || parts[1] || "";
+        const monthKey = e.date.substring(0, 7);
+        const score = Number((e.objective.pcrScore as number).toFixed(1));
+        const xAxisLabel = monthCounts[monthKey] > 1 ? `${day} ${monthName}` : `${monthName} ${year}`;
         return {
-          month: `${months[monthNum - 1]} ${year}`,
-          date: `${day} ${months[monthNum - 1]}`,
+          month: xAxisLabel,
+          date: `${day} ${monthName} ${year}`,
           score: score,
           interpretation: e.objective.pcrInterpretation || (score < 10 ? "Baik" : "Buruk"),
           label: `${score}% (${e.objective.pcrPlaqueSurfacesCount || 0}/${(e.objective.pcrTeethCount || 28) * 4} permukaan berplak)`
@@ -180,25 +215,41 @@ export default function Dashboard({
   };
 
   const getPcrSummaryStats = (targetPatientId: string) => {
-    const data = getPcrChartData(targetPatientId);
-    if (data.length === 0) return null;
-    
-    const latest = data[data.length - 1];
-    const earliest = data[0];
-    const diff = earliest.score - latest.score;
-    const isImproved = diff > 0;
-    
-    const highest = Math.max(...data.map(d => d.score));
-    const lowest = Math.min(...data.map(d => d.score));
+    const rawPcrExams = getFilteredPcrExams(targetPatientId);
+    const chartData = getPcrChartData(targetPatientId);
+    if (rawPcrExams.length === 0 || chartData.length === 0) return null;
+
+    const latestChartPoint = chartData[chartData.length - 1];
+    const earliestChartPoint = chartData[0];
+    const rawDiff = earliestChartPoint.score - latestChartPoint.score;
+
+    let trend: "improved" | "worsened" | "stable" | "initial" = "stable";
+    if (chartData.length < 2) {
+      trend = "initial";
+    } else if (rawDiff > 0.05) {
+      trend = "improved";
+    } else if (rawDiff < -0.05) {
+      trend = "worsened";
+    }
+
+    const rawScores = rawPcrExams.map((e) => e.objective.pcrScore as number);
+    const highest = Number(Math.max(...rawScores).toFixed(1));
+    const lowest = Number(Math.min(...rawScores).toFixed(1));
+    const totalRmeCount =
+      targetPatientId === "all"
+        ? validExams.length
+        : validExams.filter((e) => e.patientId === targetPatientId).length;
 
     return {
-      latestScore: latest.score,
-      latestInterpretation: latest.interpretation,
-      diff: Math.abs(Number(diff.toFixed(1))),
-      isImproved,
+      latestScore: latestChartPoint.score,
+      latestInterpretation: latestChartPoint.interpretation,
+      diff: Number(Math.abs(rawDiff).toFixed(1)),
+      isImproved: trend === "improved",
+      trend,
       highest,
       lowest,
-      recordsCount: data.length
+      recordsCount: rawPcrExams.length,
+      totalRmeCount,
     };
   };
 
@@ -583,8 +634,9 @@ export default function Dashboard({
             <div className="space-y-1">
               <span className="text-xs text-gray-500 font-medium">Total Pasien Aktif</span>
               <p className="text-2xl font-bold text-gray-900">{activePatientCount}</p>
+              <p className="text-[11px] text-gray-400">Tercatat pada Rekam Medis (RME)</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
+            <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600 shrink-0">
               <Users size={24} />
             </div>
           </div>
@@ -593,8 +645,9 @@ export default function Dashboard({
             <div className="space-y-1">
               <span className="text-xs text-gray-500 font-medium">Total Riwayat Pemeriksaan</span>
               <p className="text-2xl font-bold text-gray-900">{totalExamsCount}</p>
+              <p className="text-[11px] text-gray-400">Catatan SOAP dari {activePatientCount} pasien RME</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
               <FileText size={24} />
             </div>
           </div>
@@ -629,11 +682,11 @@ export default function Dashboard({
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0">Pilih Pasien:</span>
               <select
-                value={selectedChartPatientId}
+                value={effectiveChartPatientId}
                 onChange={(e) => setSelectedChartPatientId(e.target.value)}
                 className="text-xs font-bold border border-pink-100 bg-pink-50/50 hover:bg-pink-50 focus:bg-white text-pink-900 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer transition-all"
               >
-                <option value="all">Rata-rata Semua Pasien</option>
+                <option value="all">Rata-rata Semua Pasien ({patients.length} RME)</option>
                 {patients.map(p => (
                   <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
                 ))}
@@ -652,17 +705,17 @@ export default function Dashboard({
                   Sumbu Y: % Permukaan Berplak | Sumbu X: Kunjungan Bulanan
                 </span>
               </div>
-              {renderPcrChartComponent(selectedChartPatientId)}
+              {renderPcrChartComponent(effectiveChartPatientId)}
             </div>
 
             {/* Analysis Sidebar */}
             <div className="space-y-4 flex flex-col justify-between">
               {(() => {
-                const stats = getPcrSummaryStats(selectedChartPatientId);
+                const stats = getPcrSummaryStats(effectiveChartPatientId);
                 if (!stats) {
                   return (
                     <div className="bg-gray-50 p-4 rounded-2xl h-full flex items-center justify-center text-center text-xs text-gray-400 font-medium italic">
-                      Tidak ada data ringkasan untuk pilihan ini.
+                      Belum ada data PCR tercatat pada Rekam Medis untuk pilihan ini.
                     </div>
                   );
                 }
@@ -674,7 +727,9 @@ export default function Dashboard({
                       
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                          <span className="text-[9px] text-gray-400 font-bold block">Skor Terakhir</span>
+                          <span className="text-[9px] text-gray-400 font-bold block">
+                            {effectiveChartPatientId === "all" ? "Rata-rata Bulan Terakhir" : "Skor Terakhir"}
+                          </span>
                           <p className="text-xl font-black text-gray-800">{stats.latestScore}%</p>
                           <span className={`inline-block text-[8px] font-black px-1.5 py-0.2 rounded-full mt-1 border ${
                             stats.latestInterpretation === "Baik" 
@@ -688,28 +743,41 @@ export default function Dashboard({
                         <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                           <div>
                             <span className="text-[9px] text-gray-400 font-bold block">Perubahan Plak</span>
-                            <p className={`text-xl font-black ${stats.isImproved ? "text-emerald-600" : "text-amber-600"}`}>
-                              {stats.isImproved ? "↓" : "↑"} {stats.diff}%
+                            <p className={`text-xl font-black ${
+                              stats.trend === "improved"
+                                ? "text-emerald-600"
+                                : stats.trend === "worsened"
+                                  ? "text-rose-600"
+                                  : "text-gray-700"
+                            }`}>
+                              {stats.trend === "improved" ? "↓ " : stats.trend === "worsened" ? "↑ " : ""}
+                              {stats.diff}%
                             </p>
                           </div>
                           <span className="text-[8px] text-gray-400 font-semibold block mt-1 leading-tight">
-                            {stats.isImproved ? "Peningkatan Kebersihan" : "Fluktuasi Plak"}
+                            {stats.trend === "improved"
+                              ? "Peningkatan Kebersihan"
+                              : stats.trend === "worsened"
+                                ? "Plak Meningkat"
+                                : stats.trend === "initial"
+                                  ? "Pemeriksaan Awal"
+                                  : "Stabil (Tetap)"}
                           </span>
                         </div>
                       </div>
 
                       <div className="space-y-1.5 pt-1">
                         <div className="flex justify-between text-[10px] text-gray-600">
-                          <span className="font-medium">Skor Tertinggi:</span>
+                          <span className="font-medium">Skor RME Tertinggi:</span>
                           <span className="font-bold text-gray-800 font-mono">{stats.highest}%</span>
                         </div>
                         <div className="flex justify-between text-[10px] text-gray-600">
-                          <span className="font-medium">Skor Terendah:</span>
+                          <span className="font-medium">Skor RME Terendah:</span>
                           <span className="font-bold text-gray-800 font-mono">{stats.lowest}%</span>
                         </div>
                         <div className="flex justify-between text-[10px] text-gray-600">
-                          <span className="font-medium">Total Kunjungan Tercatat:</span>
-                          <span className="font-bold text-gray-800 font-mono">{stats.recordsCount} kali</span>
+                          <span className="font-medium">Total Pemeriksaan PCR Tercatat:</span>
+                          <span className="font-bold text-gray-800 font-mono">{stats.recordsCount} dari {stats.totalRmeCount} RME</span>
                         </div>
                       </div>
                     </div>
@@ -722,7 +790,7 @@ export default function Dashboard({
                           <p className="text-[10px] text-gray-500 leading-normal mt-0.5">
                             {stats.latestScore >= 10 
                               ? "Berikan konseling teknik sikat gigi ortodontik sela, obat kumur antiseptik, dan pantau melalui log harian pasien di tab monitoring."
-                              : "Higiene sangat baik! Pertahankan pola menyikat gigi 3x sehari dan lanjutkan tahap perawatan selanjutnya."}
+                              : "Higiene sangat baik! Pertahankan pola menyikat gigi 2–3x sehari dan lanjutkan tahap perawatan selanjutnya."}
                           </p>
                         </div>
                       </div>
@@ -943,7 +1011,7 @@ export default function Dashboard({
 
             <div className="divide-y divide-gray-100">
               {patients.map((pat) => {
-                const latestExam = exams.filter(e => e.patientId === pat.id).sort((a, b) => b.date.localeCompare(a.date))[0];
+                const latestExam = validExams.filter(e => e.patientId === pat.id).sort((a, b) => b.date.localeCompare(a.date))[0];
                 const brushingSummary = getPatientBrushingSummary(brushingChecklist, pat.id);
                 const score = brushingSummary.percentage;
                 const comp = getComplianceStatus(score);
@@ -976,7 +1044,7 @@ export default function Dashboard({
                       <div className="text-right hidden sm:block">
                         <p className="text-xs font-medium text-gray-700">Tahap Kontrol</p>
                         <p className="text-xs text-pink-600 font-semibold">
-                          {latestExam ? latestExam.plan.treatmentStage : "Inisiasi"}
+                          {latestExam ? latestExam.plan.treatmentStage : "Belum Ada RME"}
                         </p>
                       </div>
 
@@ -995,20 +1063,26 @@ export default function Dashboard({
             <h2 className="text-lg font-semibold text-gray-900">Pemberitahuan Klinis</h2>
             
             <div className="space-y-3">
-              {urgentTicketsCount > 0 ? (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-3">
-                  <AlertCircle className="text-rose-500 shrink-0" size={18} />
-                  <div>
-                    <h4 className="text-xs font-bold text-rose-800">Keluhan Nyeri Ekstrem</h4>
-                    <p className="text-xs text-rose-700 mt-1">Siti Rahmawati mendeteksi skor nyeri {logs.find(l => l.painLevel >= 8)?.painLevel}/10 hari ini. Perlu evaluasi wire.</p>
+              {urgentTicketsCount > 0 ? (() => {
+                const topUrgentLog = urgentLogs[0];
+                const urgentPatient = patients.find(p => p.id === topUrgentLog.patientId);
+                return (
+                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-3">
+                    <AlertCircle className="text-rose-500 shrink-0" size={18} />
+                    <div>
+                      <h4 className="text-xs font-bold text-rose-800">Keluhan Nyeri Ekstrem</h4>
+                      <p className="text-xs text-rose-700 mt-1">
+                        {urgentPatient?.name || "Pasien"} mencatat skor nyeri {topUrgentLog.painLevel}/10 pada {topUrgentLog.date}. Perlu evaluasi kawat gigi.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                );
+              })() : (
                 <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex gap-3">
                   <CheckCircle className="text-emerald-500 shrink-0" size={18} />
                   <div>
                     <h4 className="text-xs font-bold text-emerald-800">Kondisi Aman</h4>
-                    <p className="text-xs text-emerald-700 mt-1">Tidak ada laporan nyeri ekstrem atau kedaruratan dari pasien dalam 24 jam terakhir.</p>
+                    <p className="text-xs text-emerald-700 mt-1">Tidak ada laporan nyeri ekstrem atau kedaruratan dari pasien tercatat.</p>
                   </div>
                 </div>
               )}
@@ -1017,17 +1091,33 @@ export default function Dashboard({
                 <Clock className="text-amber-500 shrink-0" size={18} />
                 <div>
                   <h4 className="text-xs font-bold text-amber-800">Jadwal Pengiriman Data RME</h4>
-                  <p className="text-xs text-amber-700 mt-1">Sinkronisasi batch RME ortodonsia berikutnya ke SatuSehat dijadwalkan pukul 23:59 WIB.</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    {totalExamsCount} dokumen SOAP dari {activePatientCount} pasien aktif siap tersinkronisasi ke SATUSEHAT Kemenkes.
+                  </p>
                 </div>
               </div>
 
-              <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                <Calendar className="text-blue-500 shrink-0" size={18} />
-                <div>
-                  <h4 className="text-xs font-bold text-blue-800">Kontrol Mingguan</h4>
-                  <p className="text-xs text-blue-700 mt-1">Ada 2 jadwal konsultasi orto rutin untuk besok hari Senin, 13 Juli 2026.</p>
-                </div>
-              </div>
+              {(() => {
+                const scheduledPatientsCount = patients.filter((pat) => {
+                  const latest = validExams
+                    .filter((e) => e.patientId === pat.id && e.plan.nextVisitDate)
+                    .sort((a, b) => b.date.localeCompare(a.date))[0];
+                  return Boolean(latest?.plan.nextVisitDate);
+                }).length;
+                return (
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
+                    <Calendar className="text-blue-500 shrink-0" size={18} />
+                    <div>
+                      <h4 className="text-xs font-bold text-blue-800">Jadwal Kontrol RME</h4>
+                      <p className="text-xs text-blue-700 mt-1">
+                        {scheduledPatientsCount > 0
+                          ? `Terdapat ${scheduledPatientsCount} dari ${activePatientCount} pasien dengan jadwal kontrol berikutnya tercatat di RME.`
+                          : "Belum ada jadwal kontrol berikutnya yang tercatat di RME."}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="pt-2">
@@ -1048,7 +1138,7 @@ export default function Dashboard({
   }
 
   // Patient Dashboard View
-  const lastPatientExam = exams.filter(e => e.patientId === selectedPatientId).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const lastPatientExam = validExams.filter(e => e.patientId === selectedPatientId).sort((a, b) => b.date.localeCompare(a.date))[0];
   const lastPatientLog = patientLogs.sort((a, b) => b.date.localeCompare(a.date))[0];
   const patientBrushingSummary = getPatientBrushingSummary(brushingChecklist, selectedPatientId);
   const todayScore = patientBrushingSummary.percentage ?? 0;
@@ -1236,9 +1326,13 @@ export default function Dashboard({
                     </div>
 
                     <p className="text-[11px] text-gray-500 leading-relaxed text-center">
-                      {stats.isImproved 
-                        ? `Selamat! Plak gigi Anda berkurang sebesar ${stats.diff}% sejak kunjungan awal. Gigi Anda jadi lebih bersih!`
-                        : `Ayo tingkatkan kebersihan gigimu! Ada perubahan plak sekitar ${stats.diff}%.`}
+                      {stats.trend === "improved"
+                        ? `Selamat! Plak gigi Anda berkurang sebesar ${stats.diff}% sejak pemeriksaan awal. Gigi Anda jadi lebih bersih!`
+                        : stats.trend === "worsened"
+                          ? `Ayo tingkatkan kebersihan gigimu! Skor plak meningkat sekitar ${stats.diff}% dibanding pemeriksaan awal.`
+                          : stats.trend === "initial"
+                            ? `Ini adalah catatan skor plak pertama Anda di Rekam Medis (${stats.latestScore}%).`
+                            : `Skor plak gigi Anda stabil di angka ${stats.latestScore}% (${stats.recordsCount} pemeriksaan tercatat).`}
                     </p>
                   </div>
 
@@ -1377,8 +1471,12 @@ export default function Dashboard({
           </div>
 
           <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-2">
-            <TrendingUp size={16} className="text-emerald-500" />
-            <span className="text-[11px] text-gray-500">Kepatuhan Anda meningkat 8% dibanding minggu lalu!</span>
+            <TrendingUp size={16} className="text-emerald-500 shrink-0" />
+            <span className="text-[11px] text-gray-500">
+              {patientBrushingSummary.totalSessions > 0
+                ? `Tercatat ${patientBrushingSummary.completedSessions} dari ${patientBrushingSummary.totalSessions} sesi sikat gigi (${todayScore}%).`
+                : "Belum ada ceklis sikat gigi tercatat pada Buku Harian Gigi."}
+            </span>
           </div>
         </div>
       </div>

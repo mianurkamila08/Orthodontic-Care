@@ -49,6 +49,11 @@ interface EdukasiProps {
 
 type EduTabMode = "articles" | "anatomy" | "quiz";
 
+const getPlayableYouTubeEmbedUrl = (url?: string): string => {
+  if (!url) return "";
+  return url.includes("?") ? `${url}&rel=0` : `${url}?rel=0`;
+};
+
 export default function Edukasi({ articles = initialEduArticles, onReadArticle }: EdukasiProps) {
   // Navigation Mode
   const [activeTab, setActiveTab] = useState<EduTabMode>("articles");
@@ -181,10 +186,10 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
     setQuizStarted(true);
   };
 
-  // Helper to open WhatsApp for dental emergency
-  const handleOpenClinicWhatsApp = (topic: string) => {
+  // Helper to build WhatsApp link for dental emergency
+  const getClinicWhatsAppUrl = (topic: string) => {
     const text = `Halo Klinik Orthodontic Care, saya memerlukan konsultasi darurat kawat gigi mengenai: ${topic}. Mohon petunjuk langkah penanganannya. Terima kasih.`;
-    window.open(`https://wa.me/6281234567890?text=${encodeURIComponent(text)}`, "_blank");
+    return `https://wa.me/6281234567890?text=${encodeURIComponent(text)}`;
   };
 
   // Render Visual Formatted Article (Sub-headings with engaging images and accessible theory)
@@ -317,7 +322,7 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
               <a
                 href="https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="text-[11px] text-rose-600 hover:text-rose-800 underline font-semibold flex items-center gap-1 self-start sm:self-auto"
               >
                 <span>Buka di YouTube</span>
@@ -329,9 +334,11 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
             <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-md bg-black border border-rose-200">
               <iframe
                 className="w-full h-full border-0"
-                src="https://www.youtube.com/embed/nNPJxgNVBAg"
+                src={getPlayableYouTubeEmbedUrl("https://www.youtube.com/embed/nNPJxgNVBAg")}
                 title="Cara Menyikat Gigi yang Benar bagi Pengguna Behel"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                loading="lazy"
                 allowFullScreen
               />
             </div>
@@ -591,10 +598,12 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                           {/* Direct Playable 16:9 YouTube Embed */}
                           <div className="relative w-full aspect-video bg-black">
                             <iframe
-                              src={sub.videoUrl}
+                              src={getPlayableYouTubeEmbedUrl(sub.videoUrl)}
                               title={sub.videoTitle || "Video Tutorial"}
                               className="w-full h-full border-0"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              loading="lazy"
                               allowFullScreen
                             />
                           </div>
@@ -607,7 +616,7 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                             <a
                               href={sub.videoOriginalUrl || (sub.videoUrl?.replace("embed/", "watch?v=") || "https://youtu.be/3_vHsOGiIo4")}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="text-[10px] text-rose-300 hover:text-white underline font-semibold flex items-center gap-1"
                             >
                               <span>Buka di YouTube</span>
@@ -872,19 +881,138 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                   </button>
                   
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleOpenClinicWhatsApp(selectedArticle.title)}
+                    <a
+                      href={getClinicWhatsAppUrl(selectedArticle.title)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <MessageCircle size={14} className="text-emerald-600" />
                       <span>Tanya Dokter di WA</span>
-                    </button>
+                    </a>
                   </div>
                 </div>
               </div>
             ) : (
               /* Directory List View */
               <div className="space-y-4">
+                {/* Media Showcase: Video & Poster Edukasi Terpadu (Terlihat di seluruh akun terdaftar) */}
+                <div className="bg-gradient-to-r from-rose-50 via-pink-50 to-amber-50/60 p-4 sm:p-5 rounded-2xl border border-rose-200/80 shadow-xs space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                        <Video size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-gray-900">
+                          Galeri Video &amp; Poster Edukasi Klinik
+                        </h3>
+                        <p className="text-[11px] text-gray-600">
+                          Media visual interaktif (video tutorial &amp; poster diet) tersedia langsung untuk seluruh akun dokter dan pasien.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Video 1: Brushing */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const art1 = articles.find(a => a.id === "edu-1");
+                        if (art1) {
+                          setSelectedArticle(art1);
+                          onReadArticle?.(art1);
+                        }
+                      }}
+                      className="text-left p-3.5 bg-white hover:bg-rose-50/70 rounded-xl border border-rose-200 shadow-2xs transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                          <Play size={18} fill="currentColor" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-extrabold uppercase text-rose-600 block">
+                            Video Tutorial 01
+                          </span>
+                          <p className="text-xs font-bold text-gray-900 truncate">
+                            Cara Menyikat Gigi Pengguna Behel
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 bg-rose-600 text-white text-[10px] font-bold rounded-lg shrink-0 group-hover:bg-rose-700">
+                        Putar
+                      </span>
+                    </button>
+
+                    {/* Video 2: Flossing */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const art7 = articles.find(a => a.id === "edu-7");
+                        if (art7) {
+                          setSelectedArticle(art7);
+                          const subList7 = art7.subTopics?.length ? art7.subTopics : (articleSubTopicsMap["edu-7"] || []);
+                          const firstVideoSub = subList7.find(s => s.videoUrl) || subList7[0];
+                          if (firstVideoSub) {
+                            setActiveSubTopicModal(firstVideoSub);
+                            setActiveSubTopicList(subList7);
+                          }
+                          onReadArticle?.(art7);
+                        }
+                      }}
+                      className="text-left p-3.5 bg-white hover:bg-rose-50/70 rounded-xl border border-rose-200 shadow-2xs transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
+                          <Video size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-extrabold uppercase text-pink-600 block">
+                            Video Tutorial 02
+                          </span>
+                          <p className="text-xs font-bold text-gray-900 truncate">
+                            Teknik Flossing Gigi Berbehel
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 bg-pink-600 text-white text-[10px] font-bold rounded-lg shrink-0 group-hover:bg-pink-700">
+                        Putar
+                      </span>
+                    </button>
+
+                    {/* Poster: Diet */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const art2 = articles.find(a => a.id === "edu-2");
+                        if (art2) {
+                          setSelectedArticle(art2);
+                          onReadArticle?.(art2);
+                        }
+                        setShowDietPosterModal(true);
+                      }}
+                      className="text-left p-3.5 bg-white hover:bg-emerald-50/70 rounded-xl border border-emerald-200 shadow-2xs transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <ImageIcon size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-extrabold uppercase text-emerald-700 block">
+                            Poster Infografis
+                          </span>
+                          <p className="text-xs font-bold text-gray-900 truncate">
+                            Panduan Diet Ramah Ortodontik
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg shrink-0 group-hover:bg-emerald-700">
+                        Lihat Poster
+                      </span>
+                    </button>
+                  </div>
+                </div>
                 {/* Filters & Search */}
                 <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
                   <div className="relative w-full sm:w-60">
@@ -970,6 +1098,27 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                             </p>
                           </div>
 
+                          {art.id === "edu-1" && (
+                            <div className="p-2.5 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-rose-800 font-bold flex items-center gap-1.5">
+                                <Video size={12} className="text-rose-600 shrink-0" />
+                                <span>Video Tutorial Sikat Gigi</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedArticle(art);
+                                  onReadArticle?.(art);
+                                }}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Play size={10} fill="currentColor" />
+                                <span>Putar Video</span>
+                              </button>
+                            </div>
+                          )}
+
                           {art.id === "edu-2" && (
                             <div className="p-2.5 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
                               <span className="text-[11px] text-rose-800 font-bold flex items-center gap-1.5">
@@ -982,10 +1131,37 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                                   e.stopPropagation();
                                   setSelectedArticle(art);
                                   setShowDietPosterModal(true);
+                                  onReadArticle?.(art);
                                 }}
                                 className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold rounded-lg shadow-2xs transition-colors cursor-pointer"
                               >
                                 Lihat Poster
+                              </button>
+                            </div>
+                          )}
+
+                          {art.id === "edu-7" && (
+                            <div className="p-2.5 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-rose-800 font-bold flex items-center gap-1.5">
+                                <Video size={12} className="text-rose-600 shrink-0" />
+                                <span>Video Tutorial Flossing</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedArticle(art);
+                                  const firstVideoSub = subList.find(s => s.videoUrl) || subList[0];
+                                  if (firstVideoSub) {
+                                    setActiveSubTopicModal(firstVideoSub);
+                                    setActiveSubTopicList(subList);
+                                  }
+                                  onReadArticle?.(art);
+                                }}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Play size={10} fill="currentColor" />
+                                <span>Putar Video</span>
                               </button>
                             </div>
                           )}
@@ -1080,14 +1256,15 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenClinicWhatsApp(activePart.name)}
+                <a
+                  href={getClinicWhatsAppUrl(activePart.name)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <MessageCircle size={13} className="text-emerald-600" />
                   <span>Konsultasi Komponen</span>
-                </button>
+                </a>
               </div>
 
               {/* Function */}
@@ -1407,10 +1584,12 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
 
                   <div className="relative w-full aspect-video bg-black">
                     <iframe
-                      src={activeSubTopicModal.videoUrl}
+                      src={getPlayableYouTubeEmbedUrl(activeSubTopicModal.videoUrl)}
                       title={activeSubTopicModal.videoTitle || "Tutorial Praktik"}
                       className="w-full h-full border-0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      loading="lazy"
                       allowFullScreen
                     />
                   </div>
@@ -1423,7 +1602,7 @@ export default function Edukasi({ articles = initialEduArticles, onReadArticle }
                     <a
                       href={activeSubTopicModal.videoOriginalUrl || (activeSubTopicModal.videoUrl?.replace("embed/", "watch?v=") || "https://youtu.be/3_vHsOGiIo4")}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-[10px] text-rose-300 hover:text-white underline font-semibold flex items-center gap-1"
                     >
                       <span>Tonton di YouTube</span>

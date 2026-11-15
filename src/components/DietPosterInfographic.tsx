@@ -1,31 +1,26 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  X, 
-  Check, 
-  AlertTriangle, 
-  Heart, 
-  Sparkles, 
-  Utensils, 
-  Droplets, 
-  Sun, 
-  Sunset, 
-  Moon, 
-  Maximize2, 
-  Minimize2,
-  Download, 
-  Share2, 
-  Printer, 
-  Smile, 
-  CheckCircle2, 
+import React, { useState, useRef } from "react";
+import {
+  X,
+  Check,
+  AlertTriangle,
+  Heart,
+  Sparkles,
+  Utensils,
+  Sun,
+  Sunset,
+  Moon,
+  Download,
+  Share2,
+  Printer,
+  Smile,
+  CheckCircle2,
   Upload,
   Image as ImageIcon,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
-  FileText,
-  HelpCircle,
-  Eye
+  FileText
 } from "lucide-react";
+import defaultDietPosterImg from "../assets/images/diet_poster_orto_1794747658454.jpg";
 
 interface DietPosterInfographicProps {
   isModal?: boolean;
@@ -35,39 +30,19 @@ interface DietPosterInfographicProps {
 const STORAGE_KEY = "diet_poster_custom_image_url";
 
 export default function DietPosterInfographic({ isModal = false, onClose }: DietPosterInfographicProps) {
-  const [posterImage, setPosterImage] = useState<string | null>(() => {
-    return localStorage.getItem(STORAGE_KEY) || null;
+  const [customPosterImage, setCustomPosterImage] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || null;
+    } catch {
+      return null;
+    }
   });
+  const posterImage = customPosterImage || defaultDietPosterImg;
+  const hasCustomImage = Boolean(customPosterImage);
   const [activeView, setActiveView] = useState<"image" | "interactive">("image");
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [showNotification, setShowNotification] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Check if any default public poster image is available if nothing in localStorage
-  useEffect(() => {
-    if (!posterImage) {
-      const probePaths = [
-        "/poster-diet.png",
-        "/diet-poster.png",
-        "/ChatGPT%20Image%20Sep%203,%202026,%2005_56_20%20PM.png"
-      ];
-
-      const testImage = (index: number) => {
-        if (index >= probePaths.length) return;
-        const img = new Image();
-        img.src = probePaths[index];
-        img.onload = () => {
-          setPosterImage(probePaths[index]);
-        };
-        img.onerror = () => {
-          testImage(index + 1);
-        };
-      };
-
-      testImage(0);
-    }
-  }, [posterImage]);
 
   const notify = (msg: string) => {
     setShowNotification(msg);
@@ -91,12 +66,11 @@ export default function DietPosterInfographic({ isModal = false, onClose }: Diet
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        setPosterImage(dataUrl);
+        setCustomPosterImage(dataUrl);
         try {
           localStorage.setItem(STORAGE_KEY, dataUrl);
-          notify("✓ Gambar poster berhasil dipasang & tersimpan!");
+          notify("✓ Gambar poster kustom berhasil dipasang!");
         } catch {
-          // If storage limit reached, keep in memory state
           notify("✓ Gambar poster berhasil ditampilkan!");
         }
         setActiveView("image");
@@ -107,17 +81,14 @@ export default function DietPosterInfographic({ isModal = false, onClose }: Diet
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
       processFile(file);
@@ -156,9 +127,14 @@ export default function DietPosterInfographic({ isModal = false, onClose }: Diet
   };
 
   const handleResetImage = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setPosterImage(null);
-    notify("Gambar poster di-reset.");
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore storage errors
+    }
+    setCustomPosterImage(null);
+    setZoomLevel(1);
+    notify("✓ Poster dikembalikan ke tampilan standar klinik.");
   };
 
   return (
@@ -236,25 +212,21 @@ export default function DietPosterInfographic({ isModal = false, onClose }: Diet
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="px-2.5 py-1 bg-white hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold border border-rose-200 shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
-            title="Pilih file gambar poster dari komputer/HP"
+            title="Unggah file poster kustom dari komputer/HP"
           >
             <Upload size={13} />
-            <span className="hidden sm:inline">
-              {posterImage ? "Ganti Gambar" : "Pasang Gambar"}
-            </span>
+            <span className="hidden sm:inline">Ganti Poster</span>
           </button>
 
-          {/* Download if image exists */}
-          {posterImage && (
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="p-1.5 bg-white hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold border border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
-              title="Unduh Gambar Poster"
-            >
-              <Download size={13} />
-            </button>
-          )}
+          {/* Download */}
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="p-1.5 bg-white hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold border border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
+            title="Unduh Gambar Poster"
+          >
+            <Download size={13} />
+          </button>
 
           {/* Share & Print */}
           <button
@@ -288,149 +260,93 @@ export default function DietPosterInfographic({ isModal = false, onClose }: Diet
         </div>
       </div>
 
-      {/* CONTENT AREA: TOGGLED BETWEEN ORIGINAL IMAGE AND INTERACTIVE LAYOUT */}
+      {/* CONTENT AREA: TOGGLED BETWEEN POSTER IMAGE AND INTERACTIVE LAYOUT */}
       {activeView === "image" ? (
         <div className="bg-slate-900 rounded-b-2xl p-4 sm:p-6 border border-rose-100 shadow-inner flex flex-col items-center justify-center space-y-4">
-          
-          {posterImage ? (
-            /* IMAGE DISPLAY WHEN LOADED */
-            <div className="w-full space-y-3">
-              {/* Zoom Controls Bar */}
-              <div className="flex items-center justify-between gap-2 bg-slate-800/90 text-gray-200 px-3 py-1.5 rounded-xl border border-slate-700 text-xs backdrop-blur-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-300 font-medium">
-                    Resolusi Gambar: Asli
-                  </span>
-                  <span className="text-[11px] bg-slate-700 text-rose-300 font-bold px-1.5 py-0.5 rounded">
-                    {Math.round(zoomLevel * 100)}%
-                  </span>
-                </div>
+          {/* IMAGE DISPLAY ALWAYS AVAILABLE FOR ALL ACCOUNTS */}
+          <div className="w-full space-y-3">
+            {/* Zoom Controls Bar */}
+            <div className="flex items-center justify-between gap-2 bg-slate-800/90 text-gray-200 px-3 py-1.5 rounded-xl border border-slate-700 text-xs backdrop-blur-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-300 font-medium">
+                  {hasCustomImage ? "Poster Kustom Klinik" : "Poster Resmi Klinik"}
+                </span>
+                <span className="text-[11px] bg-slate-700 text-rose-300 font-bold px-1.5 py-0.5 rounded">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+              </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setZoomLevel(prev => Math.max(0.75, prev - 0.25))}
-                    disabled={zoomLevel <= 0.75}
-                    className="p-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded text-gray-200 cursor-pointer"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setZoomLevel(1)}
-                    className="p-1 bg-slate-700 hover:bg-slate-600 rounded text-gray-200 cursor-pointer text-[10px] font-bold px-1.5"
-                    title="Reset Zoom 100%"
-                  >
-                    100%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setZoomLevel(prev => Math.min(2.5, prev + 0.25))}
-                    disabled={zoomLevel >= 2.5}
-                    className="p-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded text-gray-200 cursor-pointer"
-                    title="Zoom In"
-                  >
-                    <ZoomIn size={13} />
-                  </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.max(0.75, prev - 0.25))}
+                  disabled={zoomLevel <= 0.75}
+                  className="p-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded text-gray-200 cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(1)}
+                  className="p-1 bg-slate-700 hover:bg-slate-600 rounded text-gray-200 cursor-pointer text-[10px] font-bold px-1.5"
+                  title="Reset Zoom 100%"
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.min(2.5, prev + 0.25))}
+                  disabled={zoomLevel >= 2.5}
+                  className="p-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 rounded text-gray-200 cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn size={13} />
+                </button>
+                {hasCustomImage && (
                   <button
                     type="button"
                     onClick={handleResetImage}
                     className="p-1 bg-rose-900/60 hover:bg-rose-800 text-rose-200 rounded text-[10px] font-semibold px-2 ml-2 cursor-pointer"
-                    title="Hapus gambar kustom"
+                    title="Kembalikan ke poster default klinik"
                   >
-                    Ganti / Hapus
+                    Reset Default
                   </button>
-                </div>
-              </div>
-
-              {/* Poster Image Container */}
-              <div 
-                className="w-full flex items-center justify-center overflow-auto max-h-[75vh] p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                <img
-                  src={posterImage}
-                  alt="Poster Panduan Diet Ramah Ortodontik"
-                  referrerPolicy="no-referrer"
-                  style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top center" }}
-                  className="rounded-xl shadow-2xl max-w-full h-auto object-contain transition-transform duration-200 ease-out"
-                />
-              </div>
-
-              {/* Bottom Quick Caption Bar */}
-              <div className="flex items-center justify-between gap-2 text-[11px] text-gray-400 px-1">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
-                  <span>Poster resmi panduan diet ramah ortodontik siap digunakan pasien.</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveView("interactive")}
-                  className="text-rose-400 hover:text-rose-300 font-bold underline cursor-pointer"
-                >
-                  Buka ringkasan teks &amp; menu ➔
-                </button>
+                )}
               </div>
             </div>
-          ) : (
-            /* DROPZONE / FILE SELECTOR WHEN NO IMAGE HAS BEEN LOADED YET */
+
+            {/* Poster Image Container */}
             <div 
+              className="w-full flex items-center justify-center overflow-auto max-h-[75vh] p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`w-full max-w-2xl mx-auto my-4 p-8 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center text-center space-y-4 ${
-                isDragging 
-                  ? "border-rose-400 bg-rose-950/40 scale-[1.01]" 
-                  : "border-slate-700 bg-slate-800/50 hover:border-rose-500/70 hover:bg-slate-800/80"
-              }`}
             >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-rose-950/50">
-                <ImageIcon size={32} />
-              </div>
-
-              <div className="space-y-1.5 max-w-md">
-                <h3 className="text-base font-extrabold text-white">
-                  Tampilkan Gambar Asli Poster
-                </h3>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Pilih file gambar poster <strong className="text-rose-400">"ChatGPT Image Sep 3, 2026, 05_56_20 PM.png"</strong> dari perangkat Anda, atau tarik &amp; lepas file ke kotak ini.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-5 py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black rounded-xl shadow-lg shadow-rose-950/50 transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Upload size={15} />
-                  <span>Pilih File Gambar dari Perangkat</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveView("interactive")}
-                  className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-gray-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FileText size={14} />
-                  <span>Lihat Versi Rincian Teks Dulu</span>
-                </button>
-              </div>
-
-              <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700/80 text-[11px] text-gray-400 max-w-md text-left space-y-1">
-                <p className="font-bold text-gray-300 flex items-center gap-1">
-                  <Sparkles size={12} className="text-rose-400" />
-                  <span>Penyimpanan Otomatis</span>
-                </p>
-                <p>
-                  Setelah Anda memilih file gambar sekali, gambar akan otomatis disimpan di browser Anda sehingga selalu muncul setiap kali kartu diet dibuka.
-                </p>
-              </div>
+              <img
+                src={posterImage}
+                alt="Poster Panduan Diet Ramah Ortodontik"
+                referrerPolicy="no-referrer"
+                style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top center" }}
+                className="rounded-xl shadow-2xl max-w-full max-h-[68vh] w-auto h-auto object-contain transition-transform duration-200 ease-out"
+              />
             </div>
-          )}
 
+            {/* Bottom Quick Caption Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-400 px-1">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                <span>Poster resmi panduan diet ramah ortodontik siap dibaca seluruh akun pasien &amp; dokter.</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveView("interactive")}
+                className="text-rose-400 hover:text-rose-300 font-bold underline cursor-pointer"
+              >
+                Buka rincian teks &amp; menu ➔
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         /* INTERACTIVE FORMATTED POSTER VIEW (TEXT & STRUCTURED CARDS) */

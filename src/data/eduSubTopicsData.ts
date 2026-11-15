@@ -42,6 +42,9 @@ Dengan kontur huruf V, baris tengah yang lebih pendek mampu menyapu permukaan br
       subtitle: "Sudut emas pembersihan plak margin gusi dan koloni kawat behel atas & bawah.",
       imageUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Kemiringan 45° membersihkan sela atas dan bawah bracket secara menyeluruh.",
+      videoUrl: "https://www.youtube.com/embed/nNPJxgNVBAg",
+      videoTitle: "Video Tutorial: Cara Menyikat Gigi yang Benar bagi Pengguna Behel",
+      videoOriginalUrl: "https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz",
       keyPoints: [
         "Sudut 45° ke arah gusi untuk membersihkan bagian atas bracket.",
         "Sudut 45° ke arah mahkota untuk membersihkan sela bawah bracket dan kawat.",
@@ -78,6 +81,9 @@ Gerakan getaran mikro (vibrasi) tanpa melepaskan ujung bulu sikat dari gigi akan
       subtitle: "Menembus area tersembunyi di bawah kawat lengkung yang tidak tersentuh sikat biasa.",
       imageUrl: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&auto=format&fit=crop&q=80",
       imageCaption: "Sikat interdental menjangkau kolong kawat dan sayap samping bracket.",
+      videoUrl: "https://www.youtube.com/embed/nNPJxgNVBAg",
+      videoTitle: "Video Tutorial: Cara Menyikat Gigi & Kolong Kawat bagi Pengguna Behel",
+      videoOriginalUrl: "https://youtu.be/nNPJxgNVBAg?si=6wOI1hQDqgo_uzZz",
       keyPoints: [
         "Mampu masuk ke bawah kawat ortodontik tanpa menimbulkan distorsi kawat.",
         "Membersihkan sayap bracket (tie wings) dan karet elastis (O-ring/power chain).",

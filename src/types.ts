@@ -113,6 +113,7 @@ export interface AppUser {
   fullName: string;
   createdAt: string;
   lastLoginAt?: string;
+  passwordUpdatedAt?: string;
 }
 
 export interface PatientAccessLog {

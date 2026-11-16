@@ -29,3 +29,23 @@ export const buildPatientWaUrl = (patient: Pick<Patient, "name" | "phone">): str
     ? `https://wa.me/${formattedPhone}?text=${encodedMsg}`
     : `https://wa.me/?text=${encodedMsg}`;
 };
+
+export const ADMIN_WHATSAPP_DISPLAY = "089659885779";
+
+export const buildAdminWaUrl = (
+  senderName?: string,
+  role: "dentist" | "patient" = "patient",
+  topic?: string
+): string => {
+  const formattedPhone = formatWhatsAppPhone(ADMIN_WHATSAPP_DISPLAY);
+  const cleanName = (senderName || "").trim();
+  const identity =
+    role === "dentist"
+      ? `Dokter/Klinisi ${cleanName || "Orthodontic-Care"}`
+      : `Pasien ${cleanName || "Orthodontic-Care"}`;
+  const subject = topic ? ` terkait ${topic}` : "";
+  const msg =
+    `Halo Admin Klinik Orthodontic-Care,\n` +
+    `Saya ${identity} ingin menghubungi Admin${subject}. Mohon bantuannya ya. Terima kasih.`;
+  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;
+};

@@ -960,8 +960,12 @@ export default function App() {
           {activeTab === "pemeriksaan" && (
             <Pemeriksaan
               patients={patients}
+              exams={exams}
               selectedPatientId={selectedPatientId}
+              onSelectPatient={(id) => setSelectedPatientId(id)}
               onAddExam={handleAddExam}
+              onEditExam={handleEditExam}
+              onDeleteExam={handleDeleteExam}
               onNavigateToRME={() => handleNavigateTab("rekam-medis")}
               activeDentistName={activeUserFullName}
             />

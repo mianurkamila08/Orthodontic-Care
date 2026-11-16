@@ -37,6 +37,7 @@ import {
   formatArchwireSummary,
 } from "../utils/orthoWireConstants";
 import { buildPatientWaUrl } from "../utils/whatsappUtils";
+import { calculatePcrMetrics } from "../utils/pcrUtils";
 
 interface RekamMedisProps {
   role?: "dentist" | "patient";
@@ -1601,13 +1602,12 @@ export default function RekamMedis({
                         value={editExamForm.pcrTeethCount}
                         onChange={(e) => {
                           const t = Number(e.target.value);
-                          const p = editExamForm.pcrPlaqueSurfacesCount;
-                          const score = t > 0 ? Number(((p / (t * 4)) * 100).toFixed(1)) : 0;
+                          const metrics = calculatePcrMetrics(t, editExamForm.pcrPlaqueSurfacesCount);
                           setEditExamForm({
                             ...editExamForm,
                             pcrTeethCount: t,
-                            pcrScore: score,
-                            pcrInterpretation: score < 10 ? "Baik" : "Buruk"
+                            pcrScore: metrics.pcrScore,
+                            pcrInterpretation: metrics.pcrInterpretation
                           });
                         }}
                         className="w-full px-2 py-1 border border-gray-200 bg-white rounded-lg"
@@ -1620,30 +1620,46 @@ export default function RekamMedis({
                         value={editExamForm.pcrPlaqueSurfacesCount}
                         onChange={(e) => {
                           const p = Number(e.target.value);
-                          const t = editExamForm.pcrTeethCount;
-                          const score = t > 0 ? Number(((p / (t * 4)) * 100).toFixed(1)) : 0;
+                          const metrics = calculatePcrMetrics(editExamForm.pcrTeethCount, p);
                           setEditExamForm({
                             ...editExamForm,
                             pcrPlaqueSurfacesCount: p,
-                            pcrScore: score,
-                            pcrInterpretation: score < 10 ? "Baik" : "Buruk"
+                            pcrScore: metrics.pcrScore,
+                            pcrInterpretation: metrics.pcrInterpretation
                           });
                         }}
                         className="w-full px-2 py-1 border border-gray-200 bg-white rounded-lg"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-pink-100">
-                    <span className="text-gray-500 font-medium">Skor PCR Otomatis:</span>
-                    <strong className="text-pink-700">{editExamForm.pcrScore}%</strong>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
-                      editExamForm.pcrInterpretation === 'Baik' 
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}>
-                      {editExamForm.pcrInterpretation}
-                    </span>
-                  </div>
+                  {(() => {
+                    const editPcrMetrics = calculatePcrMetrics(
+                      editExamForm.pcrTeethCount,
+                      editExamForm.pcrPlaqueSurfacesCount
+                    );
+                    return editPcrMetrics.isValid ? (
+                      <div className="flex items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-lg border border-pink-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 font-medium">Skor PCR Otomatis:</span>
+                          <strong className="text-pink-700">{editPcrMetrics.pcrScore}%</strong>
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            ({editPcrMetrics.pcrPlaqueSurfacesCount}/{editPcrMetrics.totalSurfaces})
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                          editPcrMetrics.pcrInterpretation === 'Baik' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                          {editPcrMetrics.pcrInterpretation}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 font-semibold text-[11px]">
+                        {editPcrMetrics.validationError}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1927,6 +1943,13 @@ export default function RekamMedis({
                       : "";
                     const finalProcedure =
                       editExamForm.procedure.trim() || wireSummary || "Kontrol ortodonti rutin";
+                    const finalPcr = calculatePcrMetrics(
+                      editExamForm.pcrTeethCount,
+                      editExamForm.pcrPlaqueSurfacesCount
+                    );
+                    if (!finalPcr.isValid) {
+                      return;
+                    }
                     onEditExam({
                       id: examToEdit.id,
                       patientId: examToEdit.patientId,
@@ -1945,10 +1968,10 @@ export default function RekamMedis({
                         spacingUpper: editExamForm.spacingUpper,
                         spacingLower: editExamForm.spacingLower,
                         odontogramNotes: editExamForm.odontogramNotes,
-                        pcrScore: editExamForm.pcrScore,
-                        pcrTeethCount: editExamForm.pcrTeethCount,
-                        pcrPlaqueSurfacesCount: editExamForm.pcrPlaqueSurfacesCount,
-                        pcrInterpretation: editExamForm.pcrInterpretation,
+                        pcrScore: finalPcr.pcrScore,
+                        pcrTeethCount: finalPcr.pcrTeethCount,
+                        pcrPlaqueSurfacesCount: finalPcr.pcrPlaqueSurfacesCount,
+                        pcrInterpretation: finalPcr.pcrInterpretation,
                       },
                       assessment: editExamForm.assessment,
                       plan: {

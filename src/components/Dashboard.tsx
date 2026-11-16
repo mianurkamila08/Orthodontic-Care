@@ -23,12 +23,14 @@ import {
   Sparkles,
   ArrowUpRight,
   ShieldCheck,
-  Filter
+  Filter,
+  Phone
 } from "lucide-react";
 import { Patient, SOAPExam, MonitoringLog, PatientAccessLog, BrushingChecklistData } from "../types";
 import { getPatientAccessStatus, formatRelativeTime, formatFullIndoDateTime } from "../utils/accessUtils";
 import { getOverallBrushingSummary, getPatientBrushingSummary } from "../utils/brushingUtils";
-import { buildPatientWaUrl } from "../utils/whatsappUtils";
+import { ADMIN_WHATSAPP_DISPLAY, buildAdminWaUrl, buildPatientWaUrl } from "../utils/whatsappUtils";
+import { formatIndoShortDate, resolveValidExamPcr } from "../utils/pcrUtils";
 
 interface DashboardProps {
   role: "dentist" | "patient";
@@ -170,7 +172,7 @@ export default function Dashboard({
         if (!grouped[monthKey]) {
           grouped[monthKey] = { sum: 0, count: 0 };
         }
-        grouped[monthKey].sum += e.objective.pcrScore as number;
+        grouped[monthKey].sum += resolveValidExamPcr(e).pcrScore;
         grouped[monthKey].count += 1;
       });
 
@@ -201,14 +203,14 @@ export default function Dashboard({
         const day = parts[2] || "";
         const monthName = months[monthNum - 1] || parts[1] || "";
         const monthKey = e.date.substring(0, 7);
-        const score = Number((e.objective.pcrScore as number).toFixed(1));
+        const resolved = resolveValidExamPcr(e);
         const xAxisLabel = monthCounts[monthKey] > 1 ? `${day} ${monthName}` : `${monthName} ${year}`;
         return {
           month: xAxisLabel,
           date: `${day} ${monthName} ${year}`,
-          score: score,
-          interpretation: e.objective.pcrInterpretation || (score < 10 ? "Baik" : "Buruk"),
-          label: `${score}% (${e.objective.pcrPlaqueSurfacesCount || 0}/${(e.objective.pcrTeethCount || 28) * 4} permukaan berplak)`
+          score: resolved.pcrScore,
+          interpretation: resolved.pcrInterpretation,
+          label: `${resolved.pcrScore}% (${resolved.pcrPlaqueSurfacesCount}/${resolved.totalSurfaces} permukaan berplak)`
         };
       });
     }
@@ -232,7 +234,7 @@ export default function Dashboard({
       trend = "worsened";
     }
 
-    const rawScores = rawPcrExams.map((e) => e.objective.pcrScore as number);
+    const rawScores = rawPcrExams.map((e) => resolveValidExamPcr(e).pcrScore);
     const highest = Number(Math.max(...rawScores).toFixed(1));
     const lowest = Number(Math.min(...rawScores).toFixed(1));
     const totalRmeCount =
@@ -622,9 +624,21 @@ export default function Dashboard({
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard Klinis Ortodonsia</h1>
             <p className="text-sm text-gray-500">Sistem Pemantauan Rekam Medis Elektronik (RME) Terintegrasi</p>
           </div>
-          <div className="bg-pink-50 border border-pink-200 rounded-lg px-4 py-2 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse"></span>
-            <span className="text-xs font-semibold text-pink-800">Koneksi SATUSEHAT Kemenkes RME Aktif</span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <a
+              href={buildAdminWaUrl("Mia Nurkamila, A.Md.Kes", "dentist")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3.5 py-2 flex items-center gap-2 text-xs font-bold text-emerald-800 transition-all shadow-2xs"
+              title={`Hubungi Admin Klinik via WhatsApp (${ADMIN_WHATSAPP_DISPLAY})`}
+            >
+              <MessageCircle size={15} className="text-emerald-600 shrink-0" />
+              <span>Hubungi Admin ({ADMIN_WHATSAPP_DISPLAY})</span>
+            </a>
+            <div className="bg-pink-50 border border-pink-200 rounded-lg px-4 py-2 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse"></span>
+              <span className="text-xs font-semibold text-pink-800">Koneksi SATUSEHAT Kemenkes RME Aktif</span>
+            </div>
           </div>
         </div>
 
@@ -800,6 +814,53 @@ export default function Dashboard({
               })()}
             </div>
           </div>
+
+          {effectiveChartPatientId !== "all" && (() => {
+            const patientVisits = getFilteredPcrExams(effectiveChartPatientId);
+            if (patientVisits.length === 0) return null;
+            return (
+              <div className="border-t border-pink-100/60 pt-3 space-y-2">
+                <span className="text-[10px] font-black text-pink-900 uppercase tracking-wider block">
+                  Riwayat Kunjungan PCR Terpublish ({patientVisits.length} Kunjungan)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  {patientVisits.map((visit, idx) => {
+                    const resolved = resolveValidExamPcr(visit);
+                    return (
+                      <div
+                        key={visit.id}
+                        className="p-2.5 rounded-xl border border-pink-100 bg-pink-50/20 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black text-pink-900 block">
+                            Kunjungan ke-{idx + 1}
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-mono block">
+                            {formatIndoShortDate(visit.date)}
+                          </span>
+                          <span className="text-[9px] text-gray-400 block truncate">
+                            {resolved.pcrPlaqueSurfacesCount}/{resolved.totalSurfaces} permukaan berplak
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-black text-gray-900 block">{resolved.pcrScore}%</span>
+                          <span
+                            className={`text-[9px] font-black px-1.5 py-0.2 rounded-full border ${
+                              resolved.pcrInterpretation === "Baik"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-rose-50 text-rose-700 border-rose-200"
+                            }`}
+                          >
+                            {resolved.pcrInterpretation}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Section: Pelacak Akses & Keaktifan Pasien (Real-Time Tracker) */}
@@ -1261,14 +1322,53 @@ export default function Dashboard({
             <p className="text-xs opacity-90 leading-relaxed max-w-3xl">{controlReminder.subtext}</p>
           </div>
         </div>
-        {controlReminder.status !== "none" && (
-          <button 
-            onClick={() => onNavigate("helpdesk")}
-            className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer self-stretch sm:self-auto text-center"
+        <a
+          href={buildAdminWaUrl(
+            currentPatient?.name,
+            "patient",
+            controlReminder.status !== "none" ? "Jadwal Kontrol & Reschedule" : "Konsultasi & Jadwal Klinik"
+          )}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer self-stretch sm:self-auto flex items-center justify-center gap-1.5"
+        >
+          <MessageCircle size={14} />
+          <span>Hubungi Admin ({ADMIN_WHATSAPP_DISPLAY})</span>
+        </a>
+      </div>
+
+      {/* Quick Admin Contact Strip for Patient */}
+      <div className="bg-white px-5 py-3.5 rounded-2xl border border-emerald-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Phone size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-gray-900">Layanan Hubungi Admin Klinik Orthodontic-Care</h4>
+            <p className="text-[11px] text-gray-500">
+              Butuh bantuan jadwal kontrol, reschedule, atau pertanyaan administrasi? Hubungi Admin di nomor{" "}
+              <strong className="font-mono text-emerald-700">{ADMIN_WHATSAPP_DISPLAY}</strong>.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+          <a
+            href={`tel:${ADMIN_WHATSAPP_DISPLAY}`}
+            className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all"
           >
-            Hubungi Admin / Reschedule
-          </button>
-        )}
+            <Phone size={13} />
+            <span>Telepon</span>
+          </a>
+          <a
+            href={buildAdminWaUrl(currentPatient?.name, "patient")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all"
+          >
+            <MessageCircle size={13} />
+            <span>WhatsApp Admin</span>
+          </a>
+        </div>
       </div>
 
       {/* PCR Trend Section for Patient */}
@@ -1436,12 +1536,15 @@ export default function Dashboard({
             </div>
           </div>
 
-          <button 
-            onClick={() => onNavigate("helpdesk")} 
-            className="w-full bg-pink-500 hover:bg-pink-600 text-white text-xs py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+          <a
+            href={buildAdminWaUrl(currentPatient?.name, "patient", "Reschedule Kontrol Behel")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
           >
-            Hubungi Klinik / reschedule
-          </button>
+            <MessageCircle size={14} />
+            <span>Hubungi Admin ({ADMIN_WHATSAPP_DISPLAY}) / Reschedule</span>
+          </a>
         </div>
 
         {/* Interactive Tips */}
